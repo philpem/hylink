@@ -58,7 +58,6 @@ class ADKSocket(object):
 
             # Quit if there was a null/None in the queue
             if p is None:
-                log.info("TxThread received None, shutting down...")
                 break
 
             # Don't allow send if we're not connected to the repeater
@@ -70,6 +69,8 @@ class ADKSocket(object):
 
             # Send the packet
             self.__sock.sendto(bytes(p), self.__repeaterAddr)
+
+        log.info("TxThread shutting down...")
 
 
     def __rxThreadProc(self):
@@ -120,7 +121,7 @@ class ADKSocket(object):
                 # Don't respond to heartbeats if we're not connected
                 if self.__repeaterAddr is None:
                     log.info("Heartbeat ignored, not connected")
-                    break
+                    continue
 
                 # Respond to a heartbeat with a heartbeat
                 log.debug("   Heartbeat received, responding with a heartbeat...")
@@ -128,6 +129,7 @@ class ADKSocket(object):
                 p.hytSeqID = 0      # FIXME really zero?
                 self.__txqueue.put(p)
 
+        log.info("RxThread shutting down...")
 
 logging.basicConfig(format='%(asctime)s [%(levelname)-7s] (%(threadName)s) %(message)s', level=logging.DEBUG)
 
