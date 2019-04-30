@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import logging
+import os
 import queue
+import select
 import socket
 import threading
 
@@ -15,6 +17,9 @@ class ADKSocket(object):
         # Initialise sequence ID and repeater ID
         self.__seq = 0
         self.__repeaterAddr = None
+
+        # Create a pipe to use for killing the rx thread
+        self._r_pipe, self._w_pipe = os.pipe()
 
         # Create the transmit queue
         self.__txqueue = queue.Queue()
@@ -39,9 +44,14 @@ class ADKSocket(object):
 
         # Shut down the rx thread and join it
         self.__running = False
-        self.__sock.close()
+        os.write(self._w_pipe, "I".encode())    # data isn't important
         self.__rxthread.join()
 
+    # FIXME Shutdown method is a bit of a faff. Twisted might work better, see:
+    #    https://stackoverflow.com/questions/2912245/python-how-to-close-a-udp-socket-while-is-waiting-for-data-in-recv
+    #    https://twistedmatrix.com/documents/current/core/howto/udp.html
+    #
+    # For now we use a pipe, see https://stackoverflow.com/questions/7449247/how-do-i-abort-a-socket-recvfrom-from-another-thread-in-python
 
     def __getSeq(self):
         """ Get the sequence ID then increment it """
@@ -79,8 +89,18 @@ class ADKSocket(object):
         log.debug("RxThread running")
 
         while self.__running:
+            # trigger on either a byte in the pipe or a received packet
+            # if no packet is received, go around again. If we're exiting,
+            # then self.__running won't be set.
+            read, _w, errors = select.select([self._r_pipe, self.__sock], [], [self.__sock])
+            if self.__sock not in read:
+                continue
+
             # Receive a packet
             data,addr = self.__sock.recvfrom(1024)
+            if data is None or len(data) == 0:
+                log.warn("Null Packet received -- %s from %s" % (data, addr))
+                continue
             p = HYTPacket.decode(data)
             log.debug("Packet received, addr='%s', data=%s" % (addr, p))
 
