@@ -11,6 +11,36 @@ from HyteraADK.packet import *
 
 log = logging.getLogger(__name__)
 
+
+HEARTBEAT_TIMEOUT = 30  # seconds
+
+
+class Watchdog(object):
+    def __init__(self, timeout, userHandler=None):  # timeout in seconds
+        """ Create a Watchdog Timer """
+        self.timeout = timeout
+        self.handler = userHandler if userHandler is not None else self.defaultHandler
+        self.timer = threading.Timer(self.timeout, self.handler)
+
+    def start(self):
+        """ Start the Watchdog Timer """
+        self.timer.start()
+
+    def reset(self):
+        """ Restart the timer """
+        self.timer.cancel()
+        self.timer = threading.Timer(self.timeout, self.handler)
+        self.timer.start()
+
+    def stop(self):
+        """ Stop the watchdog """
+        self.timer.cancel()
+
+    def defaultHandler(self):
+        """ Default watchdog handler """
+        raise self
+
+
 class ADKSocket(object):
 
     def __init__(self, name="ADKSocket", port=30007, host=''):
@@ -28,7 +58,8 @@ class ADKSocket(object):
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.__sock.bind((host, port))
 
-        # TODO heartbeat timer
+        # Set up the Heartbeat timer
+        self._wdt = Watchdog(HEARTBEAT_TIMEOUT, self.heartbeatExpired)
 
         # Create and start the receive and transmit threads
         self.__rxthread = threading.Thread(target=self.__rxThreadProc, name="%s-rx.%d" % (name,port))
@@ -37,8 +68,19 @@ class ADKSocket(object):
         self.__txthread.start()
 
 
+    def heartbeatExpired(self):
+        """
+        Called by the Watchdog task when we haven't received a packet in a while.
+        """
+        log.error("WATCHDOG: No packets in %d seconds -- disconnecting" % HEARTBEAT_TIMEOUT)
+        self.__repeaterAddr = None
+
+
     def stop(self):
         """ Shut down the tx/rx threads """
+        # Stop the watchdog timer
+        self._wdt.stop()
+
         # Shut down the tx thread
         self.__txqueue.put(None)
 
@@ -104,8 +146,6 @@ class ADKSocket(object):
             p = HYTPacket.decode(data)
             log.debug("Packet received, addr='%s', data=%s" % (addr, p))
 
-            # TODO reset the disconnect timer
-
             # Is this a SYN?
             if isinstance(p, HSTRPSyn):
                 log.debug("SYN... Repeater is id %d, sockaddr %s" % (p.synRepeaterRadioID, addr))
@@ -128,19 +168,24 @@ class ADKSocket(object):
                 # it's sent ten heartbeats on a 6-sec interval, without
                 # receiving a heartbeat from us.
 
+                # Start the heartbeat watchdog
+                self._wdt.start()
+
             # Is this a Heartbeat?
             elif isinstance(p, HSTRPHeartbeat):
                 # Sequence ID always seems to be zero
+
                 # TODO flag the connection as "alive" and reset the connection-death timer?
                 #       (death timer expiry: disconnect repeater and mark as disconnected)
 
-                # FIXME If we have an app crash and restart, the repeater will keep sending
-                #       us Heartbeats, expecting us to reciprocate. We should ignore them
-                #       here until the repeater gives up and goes back to sending SYNs
+                # If we have an app crash and restart, the repeater will keep sending
+                # us Heartbeats, expecting us to reciprocate.
+                # As we don't know the repeater's identity (which is in the SYN)
+                # we ignore it until it times out and reverts to sending SYNs.
 
                 # Don't respond to heartbeats if we're not connected
                 if self.__repeaterAddr is None:
-                    log.info("Heartbeat ignored, not connected")
+                    log.info("   Heartbeat ignored, not connected")
                     continue
 
                 # Respond to a heartbeat with a heartbeat
@@ -148,6 +193,9 @@ class ADKSocket(object):
                 p = HSTRPHeartbeat()
                 p.hytSeqID = 0      # FIXME really zero?
                 self.__txqueue.put(p)
+
+            # Reset the watchdog timer (rx'd packet)
+            self._wdt.reset()
 
         log.info("RxThread shutting down...")
 
