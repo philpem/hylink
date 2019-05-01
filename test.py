@@ -22,10 +22,6 @@ class Watchdog(object):
         self.handler = userHandler if userHandler is not None else self.defaultHandler
         self.timer = threading.Timer(self.timeout, self.handler)
 
-    def start(self):
-        """ Start the Watchdog Timer """
-        self.timer.start()
-
     def reset(self):
         """ Restart the timer """
         self.timer.cancel()
@@ -45,27 +41,27 @@ class ADKSocket(object):
 
     def __init__(self, name="ADKSocket", port=30007, host=''):
         # Initialise sequence ID and repeater ID
-        self.__seq = 0
-        self.__repeaterAddr = None
+        self._seq = 0
+        self._repeaterAddr = None
 
         # Create a pipe to use for killing the rx thread
         self._r_pipe, self._w_pipe = os.pipe()
 
         # Create the transmit queue
-        self.__txqueue = queue.Queue()
+        self._txqueue = queue.Queue()
 
         # Open the socket
-        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.__sock.bind((host, port))
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._sock.bind((host, port))
 
         # Set up the Heartbeat timer
         self._wdt = Watchdog(HEARTBEAT_TIMEOUT, self.heartbeatExpired)
 
         # Create and start the receive and transmit threads
-        self.__rxthread = threading.Thread(target=self.__rxThreadProc, name="%s-rx.%d" % (name,port))
-        self.__txthread = threading.Thread(target=self.__txThreadProc, name="%s-tx.%d" % (name,port))
-        self.__rxthread.start()
-        self.__txthread.start()
+        self._rxthread = threading.Thread(target=self._rxThreadProc, name="%s-rx.%d" % (name,port))
+        self._txthread = threading.Thread(target=self._txThreadProc, name="%s-tx.%d" % (name,port))
+        self._rxthread.start()
+        self._txthread.start()
 
 
     def heartbeatExpired(self):
@@ -73,7 +69,7 @@ class ADKSocket(object):
         Called by the Watchdog task when we haven't received a packet in a while.
         """
         log.error("WATCHDOG: No packets in %d seconds -- disconnecting" % HEARTBEAT_TIMEOUT)
-        self.__repeaterAddr = None
+        self._repeaterAddr = None
 
 
     def stop(self):
@@ -82,12 +78,12 @@ class ADKSocket(object):
         self._wdt.stop()
 
         # Shut down the tx thread
-        self.__txqueue.put(None)
+        self._txqueue.put(None)
 
         # Shut down the rx thread and join it
-        self.__running = False
+        self._running = False
         os.write(self._w_pipe, "I".encode())    # data isn't important
-        self.__rxthread.join()
+        self._rxthread.join()
 
     # FIXME Shutdown method is a bit of a faff. Twisted might work better, see:
     #    https://stackoverflow.com/questions/2912245/python-how-to-close-a-udp-socket-while-is-waiting-for-data-in-recv
@@ -95,81 +91,83 @@ class ADKSocket(object):
     #
     # For now we use a pipe, see https://stackoverflow.com/questions/7449247/how-do-i-abort-a-socket-recvfrom-from-another-thread-in-python
 
-    def __getSeq(self):
+    def _getSeq(self):
         """ Get the sequence ID then increment it """
-        x = self.__seq
-        self.__seq += 1
+        x = self._seq
+        self._seq += 1
         return x
 
 
-    def __txThreadProc(self):
+    def _txThreadProc(self):
         log.debug("TxThread running")
 
         while True:
-            p = self.__txqueue.get()
+            p = self._txqueue.get()
 
             # Quit if there was a null/None in the queue
             if p is None:
                 break
 
             # Don't allow send if we're not connected to the repeater
-            if self.__repeaterAddr is None:
+            if self._repeaterAddr is None:
                 log.warning("Can't send -- not connected to repeater. Packet dropped.")
                 continue
 
             log.debug("TxThread send: %s" % p)
 
             # Send the packet
-            self.__sock.sendto(bytes(p), self.__repeaterAddr)
+            self._sock.sendto(bytes(p), self._repeaterAddr)
 
         log.info("TxThread shutting down...")
 
 
-    def __rxThreadProc(self):
-        self.__running = True
+    def _rxThreadProc(self):
+        self._running = True
 
         log.debug("RxThread running")
 
-        while self.__running:
+        while self._running:
             # trigger on either a byte in the pipe or a received packet
             # if no packet is received, go around again. If we're exiting,
-            # then self.__running won't be set.
-            read, _w, errors = select.select([self._r_pipe, self.__sock], [], [self.__sock])
-            if self.__sock not in read:
+            # then self._running won't be set.
+            read, _w, errors = select.select([self._r_pipe, self._sock], [], [self._sock])
+            if self._sock not in read:
                 continue
 
             # Receive a packet
-            data,addr = self.__sock.recvfrom(1024)
+            data,addr = self._sock.recvfrom(1024)
             if data is None or len(data) == 0:
                 log.warn("Null Packet received -- %s from %s" % (data, addr))
                 continue
             p = HYTPacket.decode(data)
             log.debug("Packet received, addr='%s', data=%s" % (addr, p))
 
+            # Non-SYN packet while disconnected? If so, ignore it.
+            if self._repeaterAddr is None and not isinstance(p, HSTRPSyn):
+                log.warning("Ignored non-SYN packet while disconnected: %s" % p)
+                continue
+
             # Is this a SYN?
             if isinstance(p, HSTRPSyn):
                 log.debug("SYN... Repeater is id %d, sockaddr %s" % (p.synRepeaterRadioID, addr))
 
                 # Save the repeater address
-                self.__repeaterAddr = addr
+                self._repeaterAddr = addr
 
                 # SYN means we need to reset the sequence id
-                self.__seq = p.hytSeqID
+                self._seq = p.hytSeqID
 
                 # Acknowledge the SYN with a SYN-ACK
                 log.debug("   Sending SynAck...")
                 p = HSTRPSynAck()
-                p.hytSeqID = self.__getSeq()
-                self.__txqueue.put(p)
+                p.hytSeqID = self._getSeq()
+                self._txqueue.put(p)
 
                 # At this point, the repeater will begin sending Heartbeat messages
                 #
                 # The repeater will give up and go back to sening SYNs when
                 # it's sent ten heartbeats on a 6-sec interval, without
                 # receiving a heartbeat from us.
-
-                # Start the heartbeat watchdog
-                self._wdt.start()
 
             # Is this a Heartbeat?
             elif isinstance(p, HSTRPHeartbeat):
@@ -183,18 +181,13 @@ class ADKSocket(object):
                 # As we don't know the repeater's identity (which is in the SYN)
                 # we ignore it until it times out and reverts to sending SYNs.
 
-                # Don't respond to heartbeats if we're not connected
-                if self.__repeaterAddr is None:
-                    log.info("   Heartbeat ignored, not connected")
-                    continue
-
                 # Respond to a heartbeat with a heartbeat
                 log.debug("   Heartbeat received, responding with a heartbeat...")
                 p = HSTRPHeartbeat()
                 p.hytSeqID = 0      # FIXME really zero?
-                self.__txqueue.put(p)
+                self._txqueue.put(p)
 
-            # Reset the watchdog timer (rx'd packet)
+            # Start/Reset the watchdog timer (rx'd packet)
             self._wdt.reset()
 
         log.info("RxThread shutting down...")
