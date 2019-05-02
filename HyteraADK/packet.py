@@ -3,7 +3,6 @@ ADK transport layer (HYT)
 """
 
 import struct
-#from . import types, exceptions
 from . import exceptions
 
 class HYTPacket(object):
@@ -192,6 +191,4 @@ class HSTRPHeartbeat(HYTPacket):
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<HSTRPHeartbeat: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
-
-
 
