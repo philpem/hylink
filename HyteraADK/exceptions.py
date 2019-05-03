@@ -16,3 +16,7 @@ class HRNPCannotCreate(ADKException):
     """ HRNP: Cannot create packets of this type """
     pass
 
+class HYTPacketDataError(ADKException):
+    """ Hytera data: packet is not valid """
+    pass
+

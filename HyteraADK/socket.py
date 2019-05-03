@@ -10,9 +10,13 @@ from .packet import *
 log = logging.getLogger(__name__)
 
 
+# Log packets being tx'd/rx'd
 LOG_PACKET_RX = True
 LOG_PACKET_TX = False
+# Log heartbeats
 LOG_HEARTBEATS = False
+# Log non-SYN packets in DISCONNECTED state
+LOG_NONSYN = False
 
 HEARTBEAT_TIMEOUT = 30  # seconds
 
@@ -95,7 +99,7 @@ class ADKSocket(object):
     def _getSeq(self):
         """ Get the sequence ID then increment it """
         x = self._seq
-        self._seq += 1
+        self._seq = (self._seq + 1) & 0xFFFF
         return x
 
 
@@ -143,10 +147,11 @@ class ADKSocket(object):
                 continue
             p = HYTPacket.decode(data)
             if LOG_PACKET_RX:
-                log.debug("Packet received, addr='%s', data=%s" % (addr, p))
+                if (not isinstance(p, HSTRPHeartbeat) and not isinstance(p, HSTRPSyn)) or LOG_HEARTBEATS:
+                    log.debug("Packet received, addr='%s', data=%s" % (addr, p))
 
             # Non-SYN packet while disconnected? If so, ignore it.
-            if self._repeaterAddr is None and not isinstance(p, HSTRPSyn):
+            if self._repeaterAddr is None and not isinstance(p, HSTRPSyn) and LOG_NONSYN:
                 log.warning("Ignored non-SYN packet while disconnected: %s" % p)
                 continue
 
@@ -161,7 +166,6 @@ class ADKSocket(object):
                 self._seq = p.hytSeqID
 
                 # Acknowledge the SYN with a SYN-ACK
-                log.debug("   Sending SynAck...")
                 p = HSTRPSynAck()
                 p.hytSeqID = self._getSeq()
                 self._txqueue.put(p)
@@ -188,7 +192,7 @@ class ADKSocket(object):
                 if LOG_HEARTBEATS:
                     log.debug("   Heartbeat received, responding with a heartbeat...")
                 p = HSTRPHeartbeat()
-                p.hytSeqID = 0      # FIXME really zero?
+                p.hytSeqID = 0      # Heartbeats always have a zero sequence ID
                 self._txqueue.put(p)
 
             # Some other packet type?

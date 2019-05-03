@@ -78,7 +78,7 @@ class HSTRPSyn(HYTPacket):
             self.hytPktType = self.TYPE
             # Cannot create no-args SYN packets, they're only supposed to be
             # sent by the repeater
-            raise HRNPCannotCreate()
+            raise NotImplementedError("It is not possible to create an announcement packet with the no-args constructor")
 
         # Payload:
         #   83          unknown1
@@ -191,4 +191,122 @@ class HSTRPHeartbeat(HYTPacket):
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<HSTRPHeartbeat: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
+
+class HSTRPTxCtrl(HYTPacket):
+    """ HYT Transmitter Control packet """
+    TYPE = 0x00 # FIXME correct?
+
+    def __init__(self, data = None):
+        # Decode the packet as HYT first. We work on the payload data.
+        super().__init__(data)
+
+        # Try to decode the payload block -- TODO look up subclasses by opcode
+        self.txCtrl = TxCtrlBase(self)
+
+    def __bytes__(self):
+        """ Convert this packet into a byte sequence """
+        # A heartbeat has no payload.
+        self.hytPayload = bytes(self.txCtrl)
+        return super().__bytes__()
+
+
+    def __repr__(self):
+        """ Convert this packet into a string representation """
+        return "<HSTRPHeartbeat: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
+
+
+class TxCtrlBase(object):
+
+    def __init__(self, data):
+        # No-args constructor
+        if data is None:
+            self.txcMsgHdr = 0
+            self.txcReliable = False
+            self.txcOpcode = 0
+            self.txcPayload = []
+            return
+
+        # Not no-args -- decode the payload
+
+        # Check packet length is reasonable
+        if len(data) < 7:
+            raise exceptions.HYTPacketDataError()
+
+        # Check Message End byte
+        if data[-1] != 0x03:
+            raise exceptions.HYTPacketDataError()
+
+        # Begin decoding
+        self.txcMsgHdr = MessageHeader(data[0] & 0x7F)
+        self.txcReliable = (data[0] & 0x80) != 0
+
+        # For some unknown reason, RCP is little-endian while every other protocol is big-endian
+        if self.txcMsgHdr == MessageHeader.RCP:
+            self.txcOpcode, numBytes = struct.unpack_from("<HH", data[1:])
+        else:
+            self.txcOpcode, numBytes = struct.unpack_from(">HH", data[1:])
+
+        self.txcPayload = data[5:5+numBytes]
+
+        # Check the message checksum
+        csum = (~(sum(data[1:5]) + sum(self.txcPayload)) + 0x33) & 0xFF
+        checksum = data[-2]
+        if csum != checksum:
+            raise exceptions.HYTPacketDataError()
+
+
+    def __bytes__(self):
+        # For some unknown reason, RCP is little-endian while every other protocol is big-endian
+        if self.txcReliable:
+            reliable = 0x80
+        else:
+            reliable = 0
+
+        if self.txcMsgHdr == MessageHeader.RCP:
+            data = struct.pack("<BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload)) + self.txcPayload
+        else:
+            data = struct.pack(">BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload)) + self.txcPayload
+
+        # Calculate the message checksum
+        csum = (~(sum(data[1:5]) + sum(self.txcPayload)) + 0x33) & 0xFF
+
+        # Append checksum and trailer byte
+        data += struct.pack("BB", csum, 0x03)
+
+        return data
+
+
+    @staticmethod
+    def factory(opcode, txctrlPacket):
+        # Scan subclasses to find one which handles this packet type
+        for sc in HYTPacket.__subclasses__():
+            if sc.OPCODE == txctrlPacket.txcOpcode:
+                return sc(txctrlPacket)
+
+        # Couldn't find an ADK packet handler which handles this type of packet
+        raise exceptions.HYTUnhandledType()
+
+
+class TxCtrlCallRequest(TxCtrlBase):
+
+    OPCODE = 0x0841
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            self.callType = 0
+            self.destId = 0
+            return
+
+        # valid packet
+        self.callType, self.destId = struct.unpack_from('<BI', self.txcPayload)
+
+    def __bytes__(self):
+        self.txcPayload = struct.pack('<BI', self.callType, self.destId)
+        return super().__bytes__()
 
