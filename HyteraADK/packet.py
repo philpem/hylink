@@ -248,7 +248,7 @@ class HSTRPBroadcast(HYTPacket):
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<HSTRPBroadcast: type 0x%02X, seqid %d -- bcHeader %s, txctrl %s >" % \
-                (self.hytPktType, self.hytSeqID, self.bcMsgHdr, self.bcHeader, self.txCtrl)
+                (self.hytPktType, self.hytSeqID, self.bcHeader, self.txCtrl)
 
 
 
@@ -393,18 +393,75 @@ class TxCtrlBase(object):
 
         # Scan subclasses to find one which handles this packet type
         for sc in TxCtrlBase.__subclasses__():
-            if sc.OPCODE == txcp.txcOpcode:
+            if sc.MSGHDR == txcp.txcMsgHdr and sc.OPCODE == txcp.txcOpcode:
                 return sc(data)
 
         # Couldn't find a TxCtrl packet handler which handles this type of packet
         if CFG_RETURN_NONE_ON_UNKNOWN_TXCTRL_OPCODE:
             return None
         else:
-            raise exceptions.HYTUnhandledType("Unhandled TxCtrl opcode 0x%04X" % txcp.txcOpcode)
+            raise exceptions.HYTUnhandledType("Unhandled TxCtrl payload, msghdr %s opcode 0x%04X" % (txcp.txcMsgHdr, txcp.txcOpcode))
+
+
+class TxCtrlPTTRequest(TxCtrlBase):
+
+    MSGHDR = types.MessageHeader.RCP
+    OPCODE = 0x0041
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            self.result = 0
+            return
+
+        # valid packet
+        self.pttTarget, self.pttOperation = struct.unpack('<BB', self.txcPayload)
+        self.pttTarget    = types.PTTTarget(self.pttTarget)
+        self.pttOperation = types.PTTOperation(self.pttOperation)
+
+    def __bytes__(self):
+        self.txcPayload = struct.pack('<BB', self.pttTarget, self.pttOperation)
+        return super().__bytes__()
+
+    def __repr__(self):
+        return "<TxCtrlPTTReq: target %s, operation %s>" % (self.pttTarget, self.pttOperation)
+
+
+class TxCtrlPTTResponse(TxCtrlBase):
+
+    MSGHDR = types.MessageHeader.RCP
+    OPCODE = 0x8041
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            self.result = 0
+            return
+
+        # valid packet
+        self.result = int(self.txcPayload[0])
+
+    def __bytes__(self):
+        self.txcPayload = struct.pack('<B', self.result)
+        return super().__bytes__()
+
+    def __repr__(self):
+        return "<TxCtrlPTTResponse: result %d>" % (self.result)
 
 
 class TxCtrlCallRequest(TxCtrlBase):
 
+    MSGHDR = types.MessageHeader.RCP
     OPCODE = 0x0841
 
     def __init__(self, txc = None):
@@ -429,4 +486,66 @@ class TxCtrlCallRequest(TxCtrlBase):
 
     def __repr__(self):
         return "<TxCtrlCallRequest: callType %s, destId %d>" % (self.callType, self.destId)
+
+
+class TxCtrlCallResponse(TxCtrlBase):
+
+    MSGHDR = types.MessageHeader.RCP
+    OPCODE = 0x8841
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            self.result = 0
+            return
+
+        # valid packet
+        self.result = int(self.txcPayload[0])
+
+    def __bytes__(self):
+        self.txcPayload = struct.pack('<B', self.result)
+        return super().__bytes__()
+
+    def __repr__(self):
+        return "<TxCtrlCallResponse: result %d>" % (self.result)
+
+
+class TxCtrlBroadcastTransmitStatus(TxCtrlBase):
+
+    MSGHDR = types.MessageHeader.RCP
+    OPCODE = 0xB845
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+            #self.result = 0
+            #return
+
+        # valid packet
+        self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID = \
+                struct.unpack_from("<HHHHII", self.txcPayload)
+        self.mode = types.TxCallMode(self.mode)
+        self.status = types.TxCallStatus(self.status)
+        self.serviceType = types.TxServiceType(self.serviceType)
+        self.callType = types.CallType(self.callType)
+
+    def __bytes__(self):
+        #self.txcPayload = struct.pack('<B', self.result)
+        #return super().__bytes__()
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<TxCtrlBroadcastTransmitStatus: mode %s, status %s, svctype %s, calltype %s, target %d, sender %d>" % \
+                (self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID)
 

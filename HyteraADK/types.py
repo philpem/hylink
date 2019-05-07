@@ -58,8 +58,17 @@ class TxServiceType(Enum):
 
 
 class PTTTarget(Enum):
+    # See Buttons.cs for more
     FRONT_PTT   = 0x03  # Front PTT switch
     BACK_PTT    = 0x1E  # Back PTT switch
+
+
+class PTTOperation(Enum):
+    RELEASE     = 0     # Release PRESS
+    PRESS       = 1     # Press and hold
+    SHORT_PUSH  = 2     # Short press then release
+    LONG_PUSH   = 3     # Long press then release
+
 
 class MessageHeader(Enum):
     RCP         = 0x02
