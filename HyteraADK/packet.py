@@ -30,7 +30,7 @@ class HYTPacket(object):
 
         # Unpack the packet data
         signature = data[0:3]
-        pktType, seqid = struct.unpack_from('<BH', data, 3)
+        pktType, seqid = struct.unpack_from('>BH', data, 3)
 
         # Check the initial signature is correct
         if signature != self.__HYTSIG:
@@ -44,7 +44,7 @@ class HYTPacket(object):
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
-        return self.__HYTSIG + struct.pack('<BH', self.hytPktType, self.hytSeqID) + self.hytPayload
+        return self.__HYTSIG + struct.pack('>BH', self.hytPktType, self.hytSeqID) + self.hytPayload
 
 
     def __repr__(self):
@@ -66,6 +66,183 @@ class HYTPacket(object):
 
         # Couldn't find an ADK packet handler which handles this type of packet
         raise exceptions.HYTUnhandledType("Unhandled HYT packet class 0x%02X" % p.hytPktType)
+
+
+####################################
+#
+# HSTRP packet subtypes
+#
+####################################
+
+class HSTRPTxCtrl(HYTPacket):
+    """ HYT Transmitter Control packet """
+    TYPE = 0x00
+
+    def __init__(self, data = None):
+        # Decode the packet as HYT first. We work on the payload data.
+        super().__init__(data)
+
+        if data is not None:
+            log.debug("HSTRPTxCtrl --> data    %s" % ' '.join(["%02X"%x for x in data]))
+            log.debug("HSTRPTxCtrl --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
+        else:
+            log.debug("HSTRPTxCtrl --> data %s" % 'None')
+
+        self.txCtrl = TxCtrlBase.factory(self.hytPayload)
+        log.debug("HSTRPTxCtrl --> decode %s" % self.txCtrl)
+
+
+
+    def __bytes__(self):
+        """ Convert this packet into a byte sequence """
+        # A heartbeat has no payload.
+        self.hytPayload = bytes(self.txCtrl)
+        return super().__bytes__()
+
+
+    def __repr__(self):
+        """ Convert this packet into a string representation """
+        if self.txCtrl is not None:
+            return "<HSTRPTxCtrl: type 0x%02X, seqid %d, payload: %s >" % (self.hytPktType, self.hytSeqID, self.txCtrl)
+        else:
+            return "<HSTRPTxCtrl: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
+
+
+
+class HSTRPAck(HYTPacket):
+    """ HYT ACK packet, sent by IPDIS or the repeater to acknowledge receipt of a packet """
+    TYPE = 0x01
+
+    def __init__(self, data = None):
+        # Decode the packet as HYT first. We work on the payload data.
+        super().__init__(data)
+
+        # No-args constructor
+        if data is None:
+            self.hytPktType = self.TYPE
+            return
+
+        # An ACK has no payload.
+
+
+    def __bytes__(self):
+        """ Convert this packet into a byte sequence """
+        # An ACK has no payload.
+        self.hytPayload = b''
+        return super().__bytes__()
+
+
+    def __repr__(self):
+        """ Convert this packet into a string representation """
+        return "<HSTRPAck: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
+
+
+
+class HSTRPHeartbeat(HYTPacket):
+    """ HYT Heartbeat / Keepalive packet, sent by IPDIS or the repeater to keep the connection alive. Needs to be acked. """
+    TYPE = 0x02
+
+    def __init__(self, data = None):
+        # Decode the packet as HYT first. We work on the payload data.
+        super().__init__(data)
+
+        # No-args constructor
+        if data is None:
+            self.hytPktType = self.TYPE
+            return
+
+        # A heartbeat has no payload.
+
+
+    def __bytes__(self):
+        """ Convert this packet into a byte sequence """
+        # A heartbeat has no payload.
+        self.hytPayload = b''
+        return super().__bytes__()
+
+
+    def __repr__(self):
+        """ Convert this packet into a string representation """
+        return "<HSTRPHeartbeat: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
+
+
+class HSTRPSynAck(HYTPacket):
+    """ HYT SYN-ACK packet, sent by IPDIS to repeater when a HSTRPSyn packet is received """
+    TYPE = 0x05
+
+    def __init__(self, data = None):
+        # Decode the packet as HYT first. We work on the payload data.
+        super().__init__(data)
+
+        # No-args constructor
+        if data is None:
+            self.hytPktType = self.TYPE
+            return
+
+        # A SYN-ACK has no payload.
+
+
+    def __bytes__(self):
+        """ Convert this packet into a byte sequence """
+        # A SYN-ACK has no payload.
+        self.hytPayload = b''
+        return super().__bytes__()
+
+
+    def __repr__(self):
+        """ Convert this packet into a string representation """
+        return "<HSTRPSynAck: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
+
+
+
+class HSTRPBroadcast(HYTPacket):
+    """ HYT Repeater Reply/Broadcast packet """
+    TYPE = 0x20
+
+    def __init__(self, data = None):
+        # Decode the packet as HYT first. We work on the payload data.
+        super().__init__(data)
+
+        # Handle no-args constructor
+        if data is None:
+            self.hytPktType = self.TYPE
+            # Cannot create no-args SYN packets, they're only supposed to be
+            # sent by the repeater
+            raise NotImplementedError("It is not possible to create a reply packet with the no-args constructor")
+
+        if data is not None:
+            log.debug("HSTRPBroadcast --> data    %s" % ' '.join(["%02X"%x for x in data]))
+            log.debug("HSTRPBroadcast --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
+        else:
+            log.debug("HSTRPBroadcast --> data %s" % 'None')
+
+        # Payload: -- this is very similar to a Syn packet but has a secondary message header tacked on the end (wtf)
+        #
+        #   83          unknown1
+        #   04          unknown2
+        #   00 01 86 9F     Repeater ID (99999)
+        #   04          unknown3
+        #   01          unknown4
+        #   02              Timeslot, 01 or 02
+        #
+        #  Followed by a TxCtrl packet payload
+
+        # Begin decoding the broadcast header
+        self.bcUnknown1, self.bcUnknown2, self.bcRptID, self.bcUnknown3, self.bcUnknown4, self.bcTimeslot = \
+                struct.unpack_from('>BBIBBB', self.hytPayload)
+
+        self.txCtrl = TxCtrlBase.factory(self.hytPayload[9:])
+
+    def __bytes__(self):
+        """ Convert this packet into a byte sequence """
+        # Throw an exception because user code shouldn't be trying to send SYN packets?
+        raise HYTCannotCreate()
+        #return super().__bytes__()
+
+    def __repr__(self):
+        """ Convert this packet into a string representation """
+        return "<HSTRPBroadcast: type 0x%02X, seqid %d -- txctrl=%s >" % \
+                (self.hytPktType, self.hytSeqID, self.bcMsgHdr, self.txctrl)
 
 
 
@@ -113,122 +290,12 @@ class HSTRPSyn(HYTPacket):
                 self.synRepeaterRadioID, self.synTimeslot)
 
 
-class HSTRPSynAck(HYTPacket):
-    """ HYT SYN-ACK packet, sent by IPDIS to repeater when a HSTRPSyn packet is received """
-    TYPE = 0x05
 
-    def __init__(self, data = None):
-        # Decode the packet as HYT first. We work on the payload data.
-        super().__init__(data)
-
-        # No-args constructor
-        if data is None:
-            self.hytPktType = self.TYPE
-            return
-
-        # A SYN-ACK has no payload.
-
-
-    def __bytes__(self):
-        """ Convert this packet into a byte sequence """
-        # A SYN-ACK has no payload.
-        self.hytPayload = b''
-        return super().__bytes__()
-
-
-    def __repr__(self):
-        """ Convert this packet into a string representation """
-        return "<HSTRPSynAck: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
-
-
-class HSTRPAck(HYTPacket):
-    """ HYT ACK packet, sent by IPDIS or the repeater to acknowledge receipt of a packet """
-    TYPE = 0x01
-
-    def __init__(self, data = None):
-        # Decode the packet as HYT first. We work on the payload data.
-        super().__init__(data)
-
-        # No-args constructor
-        if data is None:
-            self.hytPktType = self.TYPE
-            return
-
-        # An ACK has no payload.
-
-
-    def __bytes__(self):
-        """ Convert this packet into a byte sequence """
-        # An ACK has no payload.
-        self.hytPayload = b''
-        return super().__bytes__()
-
-
-    def __repr__(self):
-        """ Convert this packet into a string representation """
-        return "<HSTRPAck: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
-
-
-class HSTRPHeartbeat(HYTPacket):
-    """ HYT Heartbeat / Keepalive packet, sent by IPDIS or the repeater to keep the connection alive. Needs to be acked. """
-    TYPE = 0x02
-
-    def __init__(self, data = None):
-        # Decode the packet as HYT first. We work on the payload data.
-        super().__init__(data)
-
-        # No-args constructor
-        if data is None:
-            self.hytPktType = self.TYPE
-            return
-
-        # A heartbeat has no payload.
-
-
-    def __bytes__(self):
-        """ Convert this packet into a byte sequence """
-        # A heartbeat has no payload.
-        self.hytPayload = b''
-        return super().__bytes__()
-
-
-    def __repr__(self):
-        """ Convert this packet into a string representation """
-        return "<HSTRPHeartbeat: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
-
-
-class HSTRPTxCtrl(HYTPacket):
-    """ HYT Transmitter Control packet """
-    TYPE = 0x00 # FIXME correct?
-
-    def __init__(self, data = None):
-        # Decode the packet as HYT first. We work on the payload data.
-        super().__init__(data)
-
-        if data is not None:
-            log.debug("HSTRPTxCtrl --> data    %s" % ' '.join(["%02X"%x for x in data]))
-            log.debug("HSTRPTxCtrl --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
-        else:
-            log.debug("HSTRPTxCtrl --> data %s" % 'None')
-
-        self.txCtrl = TxCtrlBase.factory(self.hytPayload)
-        log.debug("HSTRPTxCtrl --> decode %s" % self.txCtrl)
-
-
-
-    def __bytes__(self):
-        """ Convert this packet into a byte sequence """
-        # A heartbeat has no payload.
-        self.hytPayload = bytes(self.txCtrl)
-        return super().__bytes__()
-
-
-    def __repr__(self):
-        """ Convert this packet into a string representation """
-        if self.txCtrl is not None:
-            return "<HSTRPTxCtrl: type 0x%02X, seqid %d, payload: %s >" % (self.hytPktType, self.hytSeqID, self.txCtrl)
-        else:
-            return "<HSTRPTxCtrl: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
+###################################################
+#
+# TxCtrl payload types
+#
+###################################################
 
 
 class TxCtrlBase(object):

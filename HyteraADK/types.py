@@ -63,6 +63,7 @@ class PTTTarget(Enum):
 
 class MessageHeader(Enum):
     RCP         = 0x02
+    BROADCAST   = 0x03      # Only seen in HSTRPBroadcast
     LP          = 0x08
     TMP         = 0x09
     RRS         = 0x11
