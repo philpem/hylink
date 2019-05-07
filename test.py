@@ -5,6 +5,8 @@ import logging
 #from HyteraADK.packet import *
 from HyteraADK.ports import ADKDefaultPorts
 from HyteraADK.socket import ADKSocket
+from HyteraADK.packet import *
+from HyteraADK.types import *
 
 
 if __name__ == '__main__':
@@ -17,9 +19,19 @@ if __name__ == '__main__':
         # start ADK socket server
         socks[p] = ADKSocket(port = p)
 
-    # run for 60 seconds and stop
+    # run for a while
     import time
-    time.sleep(90)
+    time.sleep(20)
+
+
+    # send txctrl call request
+    htc = HSTRPTxCtrl()
+    htc.txCtrl = TxCtrlCallRequest()
+    htc.txCtrl.callType = CallType.PRIVATE
+    htc.txCtrl.destId = 1234
+    socks[ADKDefaultPorts.RCP1].send(htc)
+
+    time.sleep(10)
 
     logging.info("Shutting down...")
 

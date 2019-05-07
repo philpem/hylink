@@ -1,3 +1,4 @@
+from enum import Enum
 
 class CallType(Enum):           # ADKCoreEngine_CLR/CallType.cs
     PRIVATE             = 0             # Private call

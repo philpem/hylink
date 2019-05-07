@@ -4,15 +4,15 @@ class ADKException(Exception):
     """ Base class for ADK exceptions """
     pass
 
-class HRNPBadSignature(ADKException):
+class HYTBadSignature(ADKException):
     """ HRNP: Bad packet signature """
     pass
 
-class HRNPUnhandledType(ADKException):
+class HYTUnhandledType(ADKException):
     """ HRNP: Unrecognised/unhandled packet type """
     pass
 
-class HRNPCannotCreate(ADKException):
+class HYTCannotCreate(ADKException):
     """ HRNP: Cannot create packets of this type """
     pass
 

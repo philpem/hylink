@@ -2,8 +2,12 @@
 ADK transport layer (HYT)
 """
 
+import logging
 import struct
-from . import exceptions
+from . import exceptions, types
+
+
+log = logging.getLogger(__name__)
 
 class HYTPacket(object):
 
@@ -61,7 +65,7 @@ class HYTPacket(object):
                 return sc(data)
 
         # Couldn't find an ADK packet handler which handles this type of packet
-        raise exceptions.HYTUnhandledType()
+        raise exceptions.HYTUnhandledType("Unhandled HYT packet class 0x%02X" % p.hytPktType)
 
 
 
@@ -98,7 +102,7 @@ class HSTRPSyn(HYTPacket):
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # Throw an exception because user code shouldn't be trying to send SYN packets?
-        raise HRNPCannotCreate()
+        raise HYTCannotCreate()
         #return super().__bytes__()
 
     def __repr__(self):
@@ -192,6 +196,7 @@ class HSTRPHeartbeat(HYTPacket):
         """ Convert this packet into a string representation """
         return "<HSTRPHeartbeat: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
+
 class HSTRPTxCtrl(HYTPacket):
     """ HYT Transmitter Control packet """
     TYPE = 0x00 # FIXME correct?
@@ -200,8 +205,16 @@ class HSTRPTxCtrl(HYTPacket):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
 
-        # Try to decode the payload block -- TODO look up subclasses by opcode
-        self.txCtrl = TxCtrlBase(self)
+        if data is not None:
+            log.debug("HSTRPTxCtrl --> data    %s" % ' '.join(["%02X"%x for x in data]))
+            log.debug("HSTRPTxCtrl --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
+        else:
+            log.debug("HSTRPTxCtrl --> data %s" % 'None')
+
+        self.txCtrl = TxCtrlBase.factory(self.hytPayload)
+        log.debug("HSTRPTxCtrl --> decode %s" % self.txCtrl)
+
+
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
@@ -212,17 +225,20 @@ class HSTRPTxCtrl(HYTPacket):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<HSTRPHeartbeat: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
+        if self.txCtrl is not None:
+            return "<HSTRPTxCtrl: type 0x%02X, seqid %d, payload: %s >" % (self.hytPktType, self.hytSeqID, self.txCtrl)
+        else:
+            return "<HSTRPTxCtrl: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
 
 class TxCtrlBase(object):
 
     def __init__(self, data):
         # No-args constructor
-        if data is None:
+        if data is None or len(data) == 0:
             self.txcMsgHdr = 0
             self.txcReliable = False
-            self.txcOpcode = 0
+            self.txcOpcode = None
             self.txcPayload = []
             return
 
@@ -237,11 +253,11 @@ class TxCtrlBase(object):
             raise exceptions.HYTPacketDataError()
 
         # Begin decoding
-        self.txcMsgHdr = MessageHeader(data[0] & 0x7F)
+        self.txcMsgHdr = types.MessageHeader(data[0] & 0x7F)
         self.txcReliable = (data[0] & 0x80) != 0
 
         # For some unknown reason, RCP is little-endian while every other protocol is big-endian
-        if self.txcMsgHdr == MessageHeader.RCP:
+        if self.txcMsgHdr == types.MessageHeader.RCP:
             self.txcOpcode, numBytes = struct.unpack_from("<HH", data[1:])
         else:
             self.txcOpcode, numBytes = struct.unpack_from(">HH", data[1:])
@@ -262,7 +278,7 @@ class TxCtrlBase(object):
         else:
             reliable = 0
 
-        if self.txcMsgHdr == MessageHeader.RCP:
+        if self.txcMsgHdr == types.MessageHeader.RCP:
             data = struct.pack("<BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload)) + self.txcPayload
         else:
             data = struct.pack(">BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload)) + self.txcPayload
@@ -277,14 +293,20 @@ class TxCtrlBase(object):
 
 
     @staticmethod
-    def factory(opcode, txctrlPacket):
+    def factory(data):
+        # Decode as a TxCtrl base packet first
+        txcp = TxCtrlBase(data)
+
+        if txcp.txcOpcode is None:
+            return
+
         # Scan subclasses to find one which handles this packet type
-        for sc in HYTPacket.__subclasses__():
-            if sc.OPCODE == txctrlPacket.txcOpcode:
-                return sc(txctrlPacket)
+        for sc in TxCtrlBase.__subclasses__():
+            if sc.OPCODE == txcp.txcOpcode:
+                return sc(data)
 
         # Couldn't find an ADK packet handler which handles this type of packet
-        raise exceptions.HYTUnhandledType()
+        raise exceptions.HYTUnhandledType("Unhandled packet type, opcode 0x%04X" % txcp.txcOpcode)
 
 
 class TxCtrlCallRequest(TxCtrlBase):
@@ -305,8 +327,12 @@ class TxCtrlCallRequest(TxCtrlBase):
 
         # valid packet
         self.callType, self.destId = struct.unpack_from('<BI', self.txcPayload)
+        self.callType = types.CallType(self.callType)
 
     def __bytes__(self):
         self.txcPayload = struct.pack('<BI', self.callType, self.destId)
         return super().__bytes__()
+
+    def __repr__(self):
+        return "<TxCtrlCallRequest: callType %s, destId %d>" % (self.callType, self.destId)
 

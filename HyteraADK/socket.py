@@ -60,7 +60,7 @@ class ADKSocket(object):
         self._sock.bind((host, port))
 
         # Set up the Heartbeat timer
-        self._wdt = Watchdog(HEARTBEAT_TIMEOUT, self.heartbeatExpired)
+        self._wdt = Watchdog(HEARTBEAT_TIMEOUT, self._heartbeatExpired)
 
         # Create and start the receive and transmit threads
         self._rxthread = threading.Thread(target=self._rxThreadProc, name="%s-rx.%d" % (name,port))
@@ -69,7 +69,20 @@ class ADKSocket(object):
         self._txthread.start()
 
 
-    def heartbeatExpired(self):
+    def isConnected(self):
+        """ Returns true if the repeater is connected, otherwise false """
+        return self._repeaterAddr is not None
+
+
+    def send(self, packet):
+        """ Send a packet to the repeater and wait for a reply """
+        if packet is None:
+            raise ValueError("Cannot send a null packet")
+        packet.hytSeqID = self._getSeq()
+        self._txqueue.put(packet)
+
+
+    def _heartbeatExpired(self):
         """
         Called by the Watchdog task when we haven't received a packet in a while.
         """
@@ -115,7 +128,7 @@ class ADKSocket(object):
 
             # Don't allow send if we're not connected to the repeater
             if self._repeaterAddr is None:
-                log.warning("Can't send -- not connected to repeater. Packet dropped.")
+                log.warning("Can't send -- not connected to repeater. packet=%s" % p)
                 continue
 
             if LOG_PACKET_TX:
@@ -188,12 +201,13 @@ class ADKSocket(object):
                 # As we don't know the repeater's identity (which is in the SYN)
                 # we ignore it until it times out and reverts to sending SYNs.
 
-                # Respond to a heartbeat with a heartbeat
-                if LOG_HEARTBEATS:
-                    log.debug("   Heartbeat received, responding with a heartbeat...")
-                p = HSTRPHeartbeat()
-                p.hytSeqID = 0      # Heartbeats always have a zero sequence ID
-                self._txqueue.put(p)
+                if self._repeaterAddr is not None:
+                    # Respond to a heartbeat with a heartbeat
+                    if LOG_HEARTBEATS:
+                        log.debug("   Heartbeat received, responding with a heartbeat...")
+                    p = HSTRPHeartbeat()
+                    p.hytSeqID = 0      # Heartbeats always have a zero sequence ID
+                    self._txqueue.put(p)
 
             # Some other packet type?
             else:
