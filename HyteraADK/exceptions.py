@@ -1,5 +1,4 @@
 
-
 class ADKException(Exception):
     """ Base class for ADK exceptions """
     pass
@@ -10,10 +9,6 @@ class HYTBadSignature(ADKException):
 
 class HYTUnhandledType(ADKException):
     """ HRNP: Unrecognised/unhandled packet type """
-    pass
-
-class HYTCannotCreate(ADKException):
-    """ HRNP: Cannot create packets of this type """
     pass
 
 class HYTPacketDataError(ADKException):

@@ -9,6 +9,15 @@ from . import exceptions, types
 
 log = logging.getLogger(__name__)
 
+
+# Return 'None' if there isn't an ADK handler for this packet class
+# If False -- raises a HYTUnhandledType exception
+CFG_RETURN_NONE_ON_UNKNOWN_PCLASS = False
+
+# Return 'None' if there isn't a factory for this TxCtrl packet opcode
+# If False -- raises a HYTUnhandledType exception
+CFG_RETURN_NONE_ON_UNKNOWN_TXCTRL_OPCODE = False
+
 class HYTPacket(object):
 
     """ Root Hytera HYT packet """
@@ -34,7 +43,7 @@ class HYTPacket(object):
 
         # Check the initial signature is correct
         if signature != self.__HYTSIG:
-            raise exceptions.HYTBadSignature()
+            raise exceptions.HYTBadSignature("Bad header signature")
 
         # De-encapsulate the fields -- TODO refactor and do this with struct.decode
         self.hytPktType = pktType
@@ -65,7 +74,11 @@ class HYTPacket(object):
                 return sc(data)
 
         # Couldn't find an ADK packet handler which handles this type of packet
-        raise exceptions.HYTUnhandledType("Unhandled HYT packet class 0x%02X" % p.hytPktType)
+        if CFG_RETURN_NONE_ON_UNKNOWN_PCLASS:
+            return None
+        else:
+            raise exceptions.HYTUnhandledType("Unhandled HYT packet class 0x%02X" % p.hytPktType)
+
 
 
 ####################################
@@ -82,14 +95,17 @@ class HSTRPTxCtrl(HYTPacket):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
 
-        if data is not None:
-            log.debug("HSTRPTxCtrl --> data    %s" % ' '.join(["%02X"%x for x in data]))
-            log.debug("HSTRPTxCtrl --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
-        else:
-            log.debug("HSTRPTxCtrl --> data %s" % 'None')
+        if False:
+            if data is not None:
+                log.debug("HSTRPTxCtrl --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
+            else:
+                log.debug("HSTRPTxCtrl --> no data")
 
+        # Decode the payload -- it's a TxCtrl block
         self.txCtrl = TxCtrlBase.factory(self.hytPayload)
-        log.debug("HSTRPTxCtrl --> decode %s" % self.txCtrl)
+
+        if False:
+            log.debug("HSTRPTxCtrl --> decode  %s" % self.txCtrl)
 
 
 
@@ -166,6 +182,7 @@ class HSTRPHeartbeat(HYTPacket):
         return "<HSTRPHeartbeat: type 0x%02X, seqid %d, %d payload bytes>" % (self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
 
+
 class HSTRPSynAck(HYTPacket):
     """ HYT SYN-ACK packet, sent by IPDIS to repeater when a HSTRPSyn packet is received """
     TYPE = 0x05
@@ -208,41 +225,30 @@ class HSTRPBroadcast(HYTPacket):
             self.hytPktType = self.TYPE
             # Cannot create no-args SYN packets, they're only supposed to be
             # sent by the repeater
-            raise NotImplementedError("It is not possible to create a reply packet with the no-args constructor")
+            raise NotImplementedError("It is not possible to create a reply/broadcast packet with the no-args constructor")
 
-        if data is not None:
-            log.debug("HSTRPBroadcast --> data    %s" % ' '.join(["%02X"%x for x in data]))
-            log.debug("HSTRPBroadcast --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
-        else:
-            log.debug("HSTRPBroadcast --> data %s" % 'None')
+        if False:
+            if data is not None:
+                log.debug("HSTRPBroadcast --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
+            else:
+                log.debug("HSTRPBroadcast --> data %s" % 'None')
 
-        # Payload: -- this is very similar to a Syn packet but has a secondary message header tacked on the end (wtf)
-        #
-        #   83          unknown1
-        #   04          unknown2
-        #   00 01 86 9F     Repeater ID (99999)
-        #   04          unknown3
-        #   01          unknown4
-        #   02              Timeslot, 01 or 02
-        #
-        #  Followed by a TxCtrl packet payload
-
-        # Begin decoding the broadcast header
-        self.bcUnknown1, self.bcUnknown2, self.bcRptID, self.bcUnknown3, self.bcUnknown4, self.bcTimeslot = \
-                struct.unpack_from('>BBIBBB', self.hytPayload)
-
+        # This is a broadcast header followed by a TxCtrlBase subclass
+        self.bcHeader = RepeaterHeader(self.hytPayload)
         self.txCtrl = TxCtrlBase.factory(self.hytPayload[9:])
+
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # Throw an exception because user code shouldn't be trying to send SYN packets?
-        raise HYTCannotCreate()
+        raise NotImplementedError("It is not possible to serialize a reply/broadcast packet for transmission")
         #return super().__bytes__()
+
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<HSTRPBroadcast: type 0x%02X, seqid %d -- txctrl=%s >" % \
-                (self.hytPktType, self.hytSeqID, self.bcMsgHdr, self.txctrl)
+        return "<HSTRPBroadcast: type 0x%02X, seqid %d -- bcHeader %s, txctrl %s >" % \
+                (self.hytPktType, self.hytSeqID, self.bcMsgHdr, self.bcHeader, self.txCtrl)
 
 
 
@@ -261,32 +267,50 @@ class HSTRPSyn(HYTPacket):
             # sent by the repeater
             raise NotImplementedError("It is not possible to create an announcement packet with the no-args constructor")
 
-        # Payload:
-        #   83          unknown1
-        #   04          unknown2
-        #   00 01 86 9F     Repeater ID (99999)
-        #   04          unknown3
-        #   01          unknown4
-        #   02              Timeslot, 01 or 02
-        #
         # The ADK log calls this NetworkDescriptor / "syn packet"
 
         # Decode the payload
-        self.unknown1, self.unknown2, self.synRepeaterRadioID, self.unknown3, self.unknown4, self.synTimeslot = \
-                struct.unpack_from('>BBLBBB', self.hytPayload)
+        self.rptHeader = RepeaterHeader(self.hytPayload)
 
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # Throw an exception because user code shouldn't be trying to send SYN packets?
-        raise HYTCannotCreate()
+        raise NotImplementedError("It is not possible to serialize a SYN packet for transmission")
         #return super().__bytes__()
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<HSTRPSyn: type 0x%02X, seqid %d, unknowns(hex %02X %02X %02X %02X), repeater ID %d, timeslot %d>" % \
-                (self.hytPktType, self.hytSeqID, \
-                self.unknown1, self.unknown2, self.unknown3, self.unknown4, \
+        return "<HSTRPSyn: type 0x%02X, seqid %d, rptHeader %s >" % (self.hytPktType, self.hytSeqID, self.rptHeader)
+
+
+
+###################################################
+#
+# Repeater broadcast header
+#
+###################################################
+
+class RepeaterHeader(object):
+
+    def __init__(self, data):
+        # No-args constructor
+        if data is None or len(data) == 0:
+            # No-args is not allowed
+            raise NotImplementedError("It is not possible to create a RepeaterHeader with the no-args constructor")
+
+        # Not no-args -- decode the payload
+        self.unknown1, self.unknown2, self.synRepeaterRadioID, self.unknown3, self.unknown4, self.synTimeslot = \
+                struct.unpack_from('>BBLBBB', data)
+
+
+    def __bytes__(self):
+        raise NotImplemented("It is not reasonable to convert a RepeaterHeader to bytes")
+
+
+    def __repr__(self):
+        return "<RepeaterHeader: unknowns(hex %02X %02X %02X %02X), repeater ID %d, timeslot %d>" % \
+                (self.unknown1, self.unknown2, self.unknown3, self.unknown4, \
                 self.synRepeaterRadioID, self.synTimeslot)
 
 
@@ -335,7 +359,7 @@ class TxCtrlBase(object):
         csum = (~(sum(data[1:5]) + sum(self.txcPayload)) + 0x33) & 0xFF
         checksum = data[-2]
         if csum != checksum:
-            raise exceptions.HYTPacketDataError()
+            raise exceptions.HYTPacketDataError("Invalid packet checksum")
 
 
     def __bytes__(self):
@@ -372,8 +396,11 @@ class TxCtrlBase(object):
             if sc.OPCODE == txcp.txcOpcode:
                 return sc(data)
 
-        # Couldn't find an ADK packet handler which handles this type of packet
-        raise exceptions.HYTUnhandledType("Unhandled packet type, opcode 0x%04X" % txcp.txcOpcode)
+        # Couldn't find a TxCtrl packet handler which handles this type of packet
+        if CFG_RETURN_NONE_ON_UNKNOWN_TXCTRL_OPCODE:
+            return None
+        else:
+            raise exceptions.HYTUnhandledType("Unhandled TxCtrl opcode 0x%04X" % txcp.txcOpcode)
 
 
 class TxCtrlCallRequest(TxCtrlBase):
