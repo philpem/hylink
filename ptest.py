@@ -7,6 +7,11 @@ import socket
 from HyteraADK.packet import *
 from HyteraADK.exceptions import *
 
+
+# Suppress heartbeat packets
+SUPPRESS_HEARTBEATS = True
+
+
 # configure logging
 logging.basicConfig(format='%(asctime)s [%(levelname)-7s] (%(threadName)s) %(message)s', level=logging.DEBUG)
 
@@ -59,6 +64,10 @@ for ts,buf in pcap:
     try:
         # feed the packet to the decoder
         h = HYTPacket.decode(udp.data)
+
+        if SUPPRESS_HEARTBEATS and isinstance(h, HSTRPHeartbeat):
+            continue
+
         print('%15s:%5s %s' % (inet_to_str(ip.src), udp.dport, h))
     except HYTBadSignature:
         #print('%15s:%5s %s   !!!BAD_SIG  d=%s' % (inet_to_str(ip.src), udp.dport, '???', ' '.join(['%02X'%x for x in udp.data])))
