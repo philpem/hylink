@@ -4,11 +4,11 @@ class CallType(Enum):           # ADKCoreEngine_CLR/CallType.cs
     PRIVATE             = 0             # Private call
     GROUP               = 1             # Group call
     ALL                 = 2             # All call
-    EMERGENCY_GROUP     = 3
-    REMOTE_MONITOR      = 4
-    PRIORITY_PRIVATE    = 5
-    PRIORITY_GROUP      = 6
-    PRIORITY_ALL        = 7
+    EMERGENCY_GROUP     = 3             # Emergency group call
+    REMOTE_MONITOR      = 4             # Remote monitor call
+    PRIORITY_PRIVATE    = 5             # Priority private call
+    PRIORITY_GROUP      = 6             # Priority group call
+    PRIORITY_ALL        = 7             # Priority all call
 
 class ProcessType(Enum):
     UNAVAILABLE         = 0
@@ -25,8 +25,9 @@ class ProcessType(Enum):
 
 
 class TxCallMode(Enum):
-    NORMAL = 0
-    SELECTIVE = 1
+    NORMAL = 0                  # Normal, single-connection mode
+    SELECTIVE = 1               # Selective, multi-connection mode
+
 
 class TxCallStatus(Enum):       # Only used by B845 (Broadcast status report), which ADK doesn't seem to use
     LOCAL_REPEATING = 0         # Repeating incoming traffic
@@ -82,3 +83,39 @@ class MessageHeader(Enum):
     DDS         = 0x14      # Data Delivery States
 
 
+class SuccessFailResult(Enum):
+    SUCCESS     = 0
+    FAILURE     = 1
+
+
+class ResultCode(Enum):
+    # see dmrsvr.lua, line 395, "result_codes"
+    OK                      = 0
+    CHANNEL_BUSY            = 1
+    RX_ONLY                 = 2
+    LOW_BATTERY             = 3
+    PLL_UNLOCK              = 4
+    PRIVATE_CALL_NO_ACK     = 5
+    REPEATER_WAKEUP_FAIL    = 6
+    NO_CONTACT              = 7
+    IGNITION_PTT_DISABLE    = 8
+    TOT_REKEY               = 9
+    TX_DENY                 = 10
+    TX_INTERRUPTED          = 11
+    INVALID_PARAMETER       = 12
+
+
+class TMSResultCode(Enum):
+    OK                      = 0
+    FAIL                    = 1
+    # 2 unknown
+    INVALID_PARAMETER       = 3
+    CHANNEL_BUSY            = 4
+    RX_ONLY                 = 5
+    LOW_BATTERY             = 6
+    PLL_UNLOCK              = 7
+    PRIVATE_CALL_NO_ACK     = 8
+    REPEATER_WAKEUP_FAIL    = 9
+    NO_CONTACT              = 10
+    TX_DENY                 = 11
+    TX_INTERRUPTED          = 12

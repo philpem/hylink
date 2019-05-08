@@ -4,7 +4,8 @@ ADK transport layer (HYT)
 
 import logging
 import struct
-from . import exceptions, types
+from .types import *
+from .exceptions import *
 
 
 log = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class HYTPacket(object):
 
         # Check the initial signature is correct
         if signature != self.__HYTSIG:
-            raise exceptions.HYTBadSignature("Bad header signature")
+            raise HYTBadSignature("Bad header signature")
 
         # De-encapsulate the fields -- TODO refactor and do this with struct.decode
         self.hytPktType = pktType
@@ -77,7 +78,7 @@ class HYTPacket(object):
         if CFG_RETURN_NONE_ON_UNKNOWN_PCLASS:
             return None
         else:
-            raise exceptions.HYTUnhandledType("Unhandled HYT packet class 0x%02X" % p.hytPktType)
+            raise HYTUnhandledType("Unhandled HYT packet class 0x%02X" % p.hytPktType)
 
 
 
@@ -337,18 +338,18 @@ class TxCtrlBase(object):
 
         # Check packet length is reasonable
         if len(data) < 7:
-            raise exceptions.HYTPacketDataError()
+            raise HYTPacketDataError()
 
         # Check Message End byte
         if data[-1] != 0x03:
-            raise exceptions.HYTPacketDataError()
+            raise HYTPacketDataError()
 
         # Begin decoding
-        self.txcMsgHdr = types.MessageHeader(data[0] & 0x7F)
+        self.txcMsgHdr = MessageHeader(data[0] & 0x7F)
         self.txcReliable = (data[0] & 0x80) != 0
 
         # For some unknown reason, RCP is little-endian while every other protocol is big-endian
-        if self.txcMsgHdr == types.MessageHeader.RCP:
+        if self.txcMsgHdr == MessageHeader.RCP:
             self.txcOpcode, numBytes = struct.unpack_from("<HH", data[1:])
         else:
             self.txcOpcode, numBytes = struct.unpack_from(">HH", data[1:])
@@ -359,7 +360,7 @@ class TxCtrlBase(object):
         csum = (~(sum(data[1:5]) + sum(self.txcPayload)) + 0x33) & 0xFF
         checksum = data[-2]
         if csum != checksum:
-            raise exceptions.HYTPacketDataError("Invalid packet checksum")
+            raise HYTPacketDataError("Invalid packet checksum")
 
 
     def __bytes__(self):
@@ -369,7 +370,7 @@ class TxCtrlBase(object):
         else:
             reliable = 0
 
-        if self.txcMsgHdr == types.MessageHeader.RCP:
+        if self.txcMsgHdr == MessageHeader.RCP:
             data = struct.pack("<BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload)) + self.txcPayload
         else:
             data = struct.pack(">BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload)) + self.txcPayload
@@ -400,12 +401,12 @@ class TxCtrlBase(object):
         if CFG_RETURN_NONE_ON_UNKNOWN_TXCTRL_OPCODE:
             return None
         else:
-            raise exceptions.HYTUnhandledType("Unhandled TxCtrl payload, msghdr %s opcode 0x%04X" % (txcp.txcMsgHdr, txcp.txcOpcode))
+            raise HYTUnhandledType("Unhandled TxCtrl payload, msghdr %s opcode 0x%04X" % (txcp.txcMsgHdr, txcp.txcOpcode))
 
 
 class TxCtrlButtonRequest(TxCtrlBase):
 
-    MSGHDR = types.MessageHeader.RCP
+    MSGHDR = MessageHeader.RCP
     OPCODE = 0x0041
 
     def __init__(self, txc = None):
@@ -421,8 +422,8 @@ class TxCtrlButtonRequest(TxCtrlBase):
 
         # valid packet
         self.pttTarget, self.pttOperation = struct.unpack('<BB', self.txcPayload)
-        self.pttTarget    = types.ButtonTarget(self.pttTarget)
-        self.pttOperation = types.ButtonOperation(self.pttOperation)
+        self.pttTarget    = ButtonTarget(self.pttTarget)
+        self.pttOperation = ButtonOperation(self.pttOperation)
 
     def __bytes__(self):
         self.txcPayload = struct.pack('<BB', self.pttTarget, self.pttOperation)
@@ -434,7 +435,7 @@ class TxCtrlButtonRequest(TxCtrlBase):
 
 class TxCtrlButtonResponse(TxCtrlBase):
 
-    MSGHDR = types.MessageHeader.RCP
+    MSGHDR = MessageHeader.RCP
     OPCODE = 0x8041
 
     def __init__(self, txc = None):
@@ -449,19 +450,19 @@ class TxCtrlButtonResponse(TxCtrlBase):
             return
 
         # valid packet
-        self.result = int(self.txcPayload[0])
+        self.result = SuccessFailResult(int(self.txcPayload[0]))
 
     def __bytes__(self):
         self.txcPayload = struct.pack('<B', self.result)
         return super().__bytes__()
 
     def __repr__(self):
-        return "<TxCtrlButtonResponse: result %d>" % (self.result)
+        return "<TxCtrlButtonResponse: result %s>" % (self.result)
 
 
 class TxCtrlCallRequest(TxCtrlBase):
 
-    MSGHDR = types.MessageHeader.RCP
+    MSGHDR = MessageHeader.RCP
     OPCODE = 0x0841
 
     def __init__(self, txc = None):
@@ -478,7 +479,7 @@ class TxCtrlCallRequest(TxCtrlBase):
 
         # valid packet
         self.callType, self.destId = struct.unpack_from('<BI', self.txcPayload)
-        self.callType = types.CallType(self.callType)
+        self.callType = CallType(self.callType)
 
     def __bytes__(self):
         self.txcPayload = struct.pack('<BI', self.callType, self.destId)
@@ -490,7 +491,7 @@ class TxCtrlCallRequest(TxCtrlBase):
 
 class TxCtrlCallResponse(TxCtrlBase):
 
-    MSGHDR = types.MessageHeader.RCP
+    MSGHDR = MessageHeader.RCP
     OPCODE = 0x8841
 
     def __init__(self, txc = None):
@@ -517,7 +518,7 @@ class TxCtrlCallResponse(TxCtrlBase):
 
 class TxCtrlBroadcastTransmitStatus(TxCtrlBase):
 
-    MSGHDR = types.MessageHeader.RCP
+    MSGHDR = MessageHeader.RCP
     OPCODE = 0xB843
 
     def __init__(self, txc = None):
@@ -536,9 +537,9 @@ class TxCtrlBroadcastTransmitStatus(TxCtrlBase):
         self.process, self.source, self.callType, self.targetID = \
                 struct.unpack_from("<HHHI", self.txcPayload)
 
-        self.process = types.ProcessType(self.process)
+        self.process = ProcessType(self.process)
         # TODO source: RCPResultCode?
-        self.callType = types.CallType(self.callType)
+        self.callType = CallType(self.callType)
 
     def __bytes__(self):
         #self.txcPayload = struct.pack('<B', self.result)
@@ -552,7 +553,7 @@ class TxCtrlBroadcastTransmitStatus(TxCtrlBase):
 
 class TxCtrlRepeaterBroadcastTransmitStatus(TxCtrlBase):
 
-    MSGHDR = types.MessageHeader.RCP
+    MSGHDR = MessageHeader.RCP
     OPCODE = 0xB845
 
     def __init__(self, txc = None):
@@ -570,10 +571,10 @@ class TxCtrlRepeaterBroadcastTransmitStatus(TxCtrlBase):
         # valid packet
         self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID = \
                 struct.unpack_from("<HHHHII", self.txcPayload)
-        self.mode = types.TxCallMode(self.mode)
-        self.status = types.TxCallStatus(self.status)
-        self.serviceType = types.TxServiceType(self.serviceType)
-        self.callType = types.CallType(self.callType)
+        self.mode = TxCallMode(self.mode)
+        self.status = TxCallStatus(self.status)
+        self.serviceType = TxServiceType(self.serviceType)
+        self.callType = CallType(self.callType)
 
     def __bytes__(self):
         #self.txcPayload = struct.pack('<B', self.result)
