@@ -6,6 +6,7 @@ import logging
 import struct
 from .types import *
 from .exceptions import *
+from .utils import *
 
 
 log = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ CFG_RETURN_NONE_ON_UNKNOWN_PCLASS = False
 # Return 'None' if there isn't a factory for this TxCtrl packet opcode
 # If False -- raises a HYTUnhandledType exception
 CFG_RETURN_NONE_ON_UNKNOWN_TXCTRL_OPCODE = False
+
 
 class HYTPacket(object):
 
@@ -404,7 +406,14 @@ class TxCtrlBase(object):
             raise HYTUnhandledType("Unhandled TxCtrl payload, msghdr %s opcode 0x%04X" % (txcp.txcMsgHdr, txcp.txcOpcode))
 
 
-class TxCtrlButtonRequest(TxCtrlBase):
+#############################################################################
+#
+# RCP packet types
+#
+#############################################################################
+
+
+class RCPButtonRequest(TxCtrlBase):
 
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x0041
@@ -433,7 +442,7 @@ class TxCtrlButtonRequest(TxCtrlBase):
         return "<TxCtrlButtonReq: target %s, operation %s>" % (self.pttTarget, self.pttOperation)
 
 
-class TxCtrlButtonResponse(TxCtrlBase):
+class RCPButtonResponse(TxCtrlBase):
 
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x8041
@@ -446,21 +455,83 @@ class TxCtrlButtonResponse(TxCtrlBase):
 
         if txc is None:
             # empty packet
-            self.result = 0
-            return
+            raise NotImplemented()
 
         # valid packet
         self.result = SuccessFailResult(int(self.txcPayload[0]))
 
     def __bytes__(self):
-        self.txcPayload = struct.pack('<B', self.result)
-        return super().__bytes__()
+        raise NotImplemented()
 
     def __repr__(self):
         return "<TxCtrlButtonResponse: result %s>" % (self.result)
 
 
-class TxCtrlCallRequest(TxCtrlBase):
+class RCPChannelStatusOrParameterCheckRequest(TxCtrlBase):
+
+    MSGHDR = MessageHeader.RCP
+    OPCODE = 0x00E7
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            self.target = 0
+            self.valueType = 0
+            return
+
+        # valid packet
+        self.target, self.valueType = struct.unpack('<BB', self.txcPayload)
+        self.target = StatusParameter(self.target)
+        self.valueType = StatusValueType(self.valueType)
+
+    def __bytes__(self):
+        self.txcPayload = struct.pack('<BB', self.target, self.valueType)
+        return super().__bytes__()
+
+    def __repr__(self):
+        return "<%s: target %s, valuetype %s>" % (type(self).__name__, self.target, self.valueType)
+
+
+class RCPChannelStatusOrParameterCheckResponse(TxCtrlBase):
+
+    MSGHDR = MessageHeader.RCP
+    OPCODE = 0x80E7
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            raise NotImplemented()
+
+        print('PAYLOAD--> ', ' '.join(['%02X'%x for x in self.txcPayload]))
+
+        # valid packet
+        self.result, targetNum = struct.unpack_from('<BB', self.txcPayload)
+        self.result = SuccessFailResult(self.result)
+        self.response = []
+
+        # decode target values
+        for ofs in range(2, 2+(5*targetNum), 5):
+            target, value = struct.unpack_from('<Bi', self.txcPayload, ofs)
+            target = StatusParameter(target)
+            self.response.append((target, value))
+
+    def __bytes__(self):
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<%s: result %s, responses: %s >" % (type(self).__name__, self.result, self.response)
+
+
+class RCPCallRequest(TxCtrlBase):
 
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x0841
@@ -489,7 +560,7 @@ class TxCtrlCallRequest(TxCtrlBase):
         return "<TxCtrlCallRequest: callType %s, destId %d>" % (self.callType, self.destId)
 
 
-class TxCtrlCallResponse(TxCtrlBase):
+class RCPCallResponse(TxCtrlBase):
 
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x8841
@@ -516,7 +587,7 @@ class TxCtrlCallResponse(TxCtrlBase):
         return "<TxCtrlCallResponse: result %d>" % (self.result)
 
 
-class TxCtrlBroadcastTransmitStatus(TxCtrlBase):
+class RCPBroadcastTransmitStatus(TxCtrlBase):
 
     MSGHDR = MessageHeader.RCP
     OPCODE = 0xB843
@@ -551,7 +622,7 @@ class TxCtrlBroadcastTransmitStatus(TxCtrlBase):
                 (self.process, self.source, self.callType, self.targetID)
 
 
-class TxCtrlRepeaterBroadcastTransmitStatus(TxCtrlBase):
+class RCPRepeaterBroadcastTransmitStatus(TxCtrlBase):
 
     MSGHDR = MessageHeader.RCP
     OPCODE = 0xB845
@@ -584,4 +655,186 @@ class TxCtrlRepeaterBroadcastTransmitStatus(TxCtrlBase):
     def __repr__(self):
         return "<TxCtrlRepeaterBroadcastTransmitStatus: mode %s, status %s, svctype %s, calltype %s, target %d, sender %d>" % \
                 (self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID)
+
+
+#############################################################################
+#
+# RRS packet types
+#
+#############################################################################
+
+# TODO check the name of this one
+class RRSRegister(TxCtrlBase):
+
+    MSGHDR = MessageHeader.RRS
+    OPCODE = 0x0003
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+
+        # valid packet
+        self.radioIP = struct.unpack_from('>I', self.txcPayload)[0]
+        self.radioID = dmrIPtoID(self.radioIP)
+
+    def __bytes__(self):
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<%s: radioIP=%s, radioID=%s>" % (type(self).__name__, dmrIPtoStr(self.radioIP), self.radioID)
+
+#############################################################################
+#
+# TMP packet types
+#
+#############################################################################
+
+class TMPPrivateMessageNeedAck(TxCtrlBase):
+    # Hytera API: TMP_PRIVATE_NEED_ACK_REQUEST
+
+    MSGHDR = MessageHeader.TMP
+    OPCODE = 0x00A1
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+
+        # valid packet
+        self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
+        self.destID  = dmrIPtoID(self.destIP)
+        self.srcID   = dmrIPtoID(self.srcIP)
+        self.message = self.txcPayload[12:].decode('utf-16le')
+
+    def __bytes__(self):
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
+
+
+class TMPPrivateMessageAnswer(TxCtrlBase):
+    # Hytera API: TMP_PRIVATE_ANSWER
+
+    MSGHDR = MessageHeader.TMP
+    OPCODE = 0x00A2
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+
+        # valid packet
+        self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
+        self.destID  = dmrIPtoID(self.destIP)
+        self.srcID   = dmrIPtoID(self.srcIP)
+ 
+    def __bytes__(self):
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<%s: msgseq=%d, from %d to %d>" % (type(self).__name__, self.msgSeq, self.srcID, self.destID)
+
+
+class TMPGroupMessage(TxCtrlBase):
+    # Hytera API: TMP_GROUP_REQUEST
+
+    MSGHDR = MessageHeader.TMP
+    OPCODE = 0x00B1
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+
+        # valid packet
+        self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
+        self.destID  = dmrIPtoID(self.destIP)
+        self.srcID   = dmrIPtoID(self.srcIP)
+        self.message = self.txcPayload[12:].decode('utf-16le')
+
+    def __bytes__(self):
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
+
+
+class TMPGroupMessageAnswer(TxCtrlBase):
+    # Hytera API: TMP_GROUP_ANSWER
+
+    MSGHDR = MessageHeader.TMP
+    OPCODE = 0x00B2
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+
+        # valid packet
+        self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
+        self.destID  = dmrIPtoID(self.destIP)
+        self.srcID   = dmrIPtoID(self.srcIP)
+ 
+    def __bytes__(self):
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<%s: msgseq=%d, from %d to %d>" % (type(self).__name__, self.msgSeq, self.srcID, self.destID)
+
+
+class TMPPrivateMessageNoAck(TxCtrlBase):
+    # Hytera API: TMP_PRIVATE_NO_NEED_ACK_REQUEST
+
+    MSGHDR = MessageHeader.TMP
+    OPCODE = 0x80A1
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+
+        # valid packet
+        self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
+        self.destID  = dmrIPtoID(self.destIP)
+        self.srcID   = dmrIPtoID(self.srcIP)
+        self.message = self.txcPayload[12:].decode('utf-16le')
+
+    def __bytes__(self):
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
+
 

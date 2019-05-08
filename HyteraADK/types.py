@@ -105,6 +105,25 @@ class ResultCode(Enum):
     INVALID_PARAMETER       = 12
 
 
+class StatusParameter(Enum):
+    STATUS_OF_ALL_CHANNELS      = 0     # Status and parameter of all channels
+    SQUELCH_LEVEL               = 1     # Squelch level for analog channel (0=open, 1=normal, 2=tight)
+    CTCSS_CDCSS_MATCH_STATUS    = 2     # CDCSS/CTCSS match status (analog) (0=no match, 1=match)
+    POWER_LEVEL                 = 3     # Power level (0=high, 2=low)
+    TX_FREQUENCY                = 4     # Transmit frequency
+    RX_FREQUENCY                = 5     # Receive frequency
+    TX_ALLOW                    = 6     # TX Allow (0=always, 1=channel free, 2=colour free, 3=CTCSS/CDCSS correct, 4=CTCSS/CDCSS incorrect, 5=RX only)
+    CHANNEL_MODE                = 7     # Channel mode (0=conventional digital, 1=conventional analog, 2=repeater digital, 3=repeater analog, 4=trunking digital, 5=trunking analog, 6=repeater mix_channel, 0xFFFFFFFF=invalid)
+    TALKAROUND_STATUS           = 8     # Talkaround status on/off [off_on type]
+    RSSI                        = 9     # RSSI
+    CARRIER_STATUS              = 10    # Carrier status (0=not present, 1=present)
+
+
+class StatusValueType(Enum):
+    LEVEL                       = 0
+    DB_VALUE                    = 1
+    ABANDON                     = 2
+
 class TMSResultCode(Enum):
     OK                      = 0
     FAIL                    = 1
