@@ -518,6 +518,41 @@ class TxCtrlCallResponse(TxCtrlBase):
 class TxCtrlBroadcastTransmitStatus(TxCtrlBase):
 
     MSGHDR = types.MessageHeader.RCP
+    OPCODE = 0xB843
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+            #self.result = 0
+            #return
+
+        # valid packet
+        self.process, self.source, self.callType, self.targetID = \
+                struct.unpack_from("<HHHI", self.txcPayload)
+
+        self.process = types.ProcessType(self.process)
+        # TODO source: RCPResultCode?
+        self.callType = types.CallType(self.callType)
+
+    def __bytes__(self):
+        #self.txcPayload = struct.pack('<B', self.result)
+        #return super().__bytes__()
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<TxCtrlBroadcastTransmitStatus: process %s, source %s, calltype %s, target %d>" % \
+                (self.process, self.source, self.callType, self.targetID)
+
+
+class TxCtrlRepeaterBroadcastTransmitStatus(TxCtrlBase):
+
+    MSGHDR = types.MessageHeader.RCP
     OPCODE = 0xB845
 
     def __init__(self, txc = None):
@@ -546,6 +581,6 @@ class TxCtrlBroadcastTransmitStatus(TxCtrlBase):
         raise NotImplemented()
 
     def __repr__(self):
-        return "<TxCtrlBroadcastTransmitStatus: mode %s, status %s, svctype %s, calltype %s, target %d, sender %d>" % \
+        return "<TxCtrlRepeaterBroadcastTransmitStatus: mode %s, status %s, svctype %s, calltype %s, target %d, sender %d>" % \
                 (self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID)
 
