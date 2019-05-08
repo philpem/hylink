@@ -663,8 +663,35 @@ class RCPRepeaterBroadcastTransmitStatus(TxCtrlBase):
 #
 #############################################################################
 
-# TODO check the name of this one
+class RRSOffline(TxCtrlBase):
+    """ RRS_OFFLINE: RRS Radio Offline request """
+
+    MSGHDR = MessageHeader.RRS
+    OPCODE = 0x0001
+
+    def __init__(self, txc = None):
+        # Decode the Tx Call payload first
+        super().__init__(txc)
+
+        self.txcOpcode = self.OPCODE
+
+        if txc is None:
+            # empty packet
+            raise NotImplemented()
+
+        # valid packet
+        self.radioIP = struct.unpack_from('>I', self.txcPayload)[0]
+        self.radioID = dmrIPtoID(self.radioIP)
+
+    def __bytes__(self):
+        raise NotImplemented()
+
+    def __repr__(self):
+        return "<%s: radioIP=%s, radioID=%s>" % (type(self).__name__, dmrIPtoStr(self.radioIP), self.radioID)
+
+
 class RRSRegister(TxCtrlBase):
+    """ RRS_REGIST: RRS Registration request """
 
     MSGHDR = MessageHeader.RRS
     OPCODE = 0x0003
@@ -688,6 +715,17 @@ class RRSRegister(TxCtrlBase):
 
     def __repr__(self):
         return "<%s: radioIP=%s, radioID=%s>" % (type(self).__name__, dmrIPtoStr(self.radioIP), self.radioID)
+
+
+# TODO list for RRS:
+#
+#   RRS Opcode 128, Register Ack
+#
+#   - OnlineAnswerRequest aka CRRSOnlineAnswerRequest (from ADKCoreEngine_CLR/ServiceBase.cs) --
+#        - Result
+#        - Valid time
+#        - Target ID   (+12)
+
 
 #############################################################################
 #
