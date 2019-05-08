@@ -57,13 +57,15 @@ class TxServiceType(Enum):
     SUPPLEMENTARY = 6
 
 
-class PTTTarget(Enum):
+class ButtonTarget(Enum):
     # See Buttons.cs for more
-    FRONT_PTT   = 0x03  # Front PTT switch
-    BACK_PTT    = 0x1E  # Back PTT switch
+    FRONT_PTT       = 0x03  # Front PTT switch (Internal PTT)
+    BACK_PTT        = 0x1E  # Back PTT switch (External PTT)
+    CHANNEL_UP      = 0x22  # Channel Up
+    CHANNEL_DOWN    = 0x23  # Channel Down
 
 
-class PTTOperation(Enum):
+class ButtonOperation(Enum):
     RELEASE     = 0     # Release PRESS
     PRESS       = 1     # Press and hold
     SHORT_PUSH  = 2     # Short press then release

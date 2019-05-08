@@ -403,7 +403,7 @@ class TxCtrlBase(object):
             raise exceptions.HYTUnhandledType("Unhandled TxCtrl payload, msghdr %s opcode 0x%04X" % (txcp.txcMsgHdr, txcp.txcOpcode))
 
 
-class TxCtrlPTTRequest(TxCtrlBase):
+class TxCtrlButtonRequest(TxCtrlBase):
 
     MSGHDR = types.MessageHeader.RCP
     OPCODE = 0x0041
@@ -421,18 +421,18 @@ class TxCtrlPTTRequest(TxCtrlBase):
 
         # valid packet
         self.pttTarget, self.pttOperation = struct.unpack('<BB', self.txcPayload)
-        self.pttTarget    = types.PTTTarget(self.pttTarget)
-        self.pttOperation = types.PTTOperation(self.pttOperation)
+        self.pttTarget    = types.ButtonTarget(self.pttTarget)
+        self.pttOperation = types.ButtonOperation(self.pttOperation)
 
     def __bytes__(self):
         self.txcPayload = struct.pack('<BB', self.pttTarget, self.pttOperation)
         return super().__bytes__()
 
     def __repr__(self):
-        return "<TxCtrlPTTReq: target %s, operation %s>" % (self.pttTarget, self.pttOperation)
+        return "<TxCtrlButtonReq: target %s, operation %s>" % (self.pttTarget, self.pttOperation)
 
 
-class TxCtrlPTTResponse(TxCtrlBase):
+class TxCtrlButtonResponse(TxCtrlBase):
 
     MSGHDR = types.MessageHeader.RCP
     OPCODE = 0x8041
@@ -456,7 +456,7 @@ class TxCtrlPTTResponse(TxCtrlBase):
         return super().__bytes__()
 
     def __repr__(self):
-        return "<TxCtrlPTTResponse: result %d>" % (self.result)
+        return "<TxCtrlButtonResponse: result %d>" % (self.result)
 
 
 class TxCtrlCallRequest(TxCtrlBase):
