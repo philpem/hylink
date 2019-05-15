@@ -61,8 +61,9 @@ class ADKSocket(object):
         # Create the transmit queue
         self._txqueue = queue.Queue()
 
-        # Create the ack queue
+        # Create the ack queue and callback table
         self._ackqueue = queue.Queue()
+        self._ackcallbacks = {}
 
         # Open the socket
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -99,17 +100,16 @@ class ADKSocket(object):
         if isinstance(packet, HSTRPToRadio):
             ackReq = True
 
-            # Do we have a callback assigned? If so, set it up
-            if callback is not None:
-                # FIXME Implement callback. 
-                raise ValueError("Callback is not implemented!")
-
-        # Hytera form packet -- update the sequence ID and send it to the radio
+        # Hytera form packet -- update the sequence ID
         packet.hytSeqID = self._getSeq()
+        # If ack callback is needed, store it in the sequence list
+        if ackReq and (callback is not None):
+            self._ackcallbacks[packet.hytSeqID] = callback
+        # Send the packet
         self._txqueue.put(packet)
 
         # If this is a blocking operation -- wait for the ack
-        if ackReq and callback is None:
+        if ackReq and (callback is None):
             # Wait for the Ack
             ackn = self.waitAck(self.ackTimeout)
             log.debug("  Blocking send acknowledged, sent seq=%d, ack=%d" % (packet.hytSeqID, ackn))
@@ -255,8 +255,15 @@ class ADKSocket(object):
             # Is this an acknowledgement?
             elif isinstance(p, HSTRPAck):
                 log.debug("   Acknowledgement for seq=%d" % p.hytSeqID)
-                # Acknowledgement packet
-                self._ackqueue.put(p.hytSeqID)
+
+                # Is there an ACK callback registered for this sequence ID?
+                if p.hytSeqID in self._ackcallbacks:
+                    # Callback registered, call it and remove it from the list
+                    self._ackcallbacks[p.hytSeqID](p.hytSeqID)
+                    del self._ackcallbacks[p.hytSeqID]
+                else:
+                    # No callback, put the ack in the queue (for waitAck)
+                    self._ackqueue.put(p.hytSeqID)
 
             # Some other packet type?
             else:
@@ -269,5 +276,17 @@ class ADKSocket(object):
 
 
     def waitAck(self, timeout=None):
-        return self._ackqueue.get(timeout=timeout)
+        """
+        Wait for the next acknowledgement in the queue and return it
+
+        Timeout = None is a blocking operation (returns when an ACK is received)
+        Timeout = 0 is nonblocking (returns immediately)
+        Timeout > 0 is blocking, with a timeout
+        """
+        if timeout is None or timeout > 0:
+            return self._ackqueue.get(timeout=timeout)
+        elif timeout == 0:
+            return self._ackqueue.get(block=False)
+        else:
+            raise ValueError("Invalid timeout value, must be None or >= 0")
 
