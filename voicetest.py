@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+import queue
 import time
 
 #from HyteraADK.packet import *
@@ -27,9 +28,12 @@ if __name__ == '__main__':
     rcpPort = ADKSocket(ADKDefaultPorts.RCP1)
 
 
-    # run for a while (TODO - wait for connection)
+    # run for a while
+    # TODO -- packet -- make this event driven (wait on an event queue)
     logging.info("Waiting for repeater connection")
-    time.sleep(90)
+    while (not rtpPort.isConnected()) or (not rcpPort.isConnected()):
+        time.sleep(2)
+    logging.info("Repeater connected!")
 
 
     # send txctrl call request
@@ -38,7 +42,7 @@ if __name__ == '__main__':
     htc.txCtrl = RCPCallRequest()
     htc.txCtrl.callType = CallType.PRIVATE
     htc.txCtrl.destId = 1234
-    rcpPort.send(htc)
+    seqn = rcpPort.send(htc)
 
 
     logging.info("Keying up...")
@@ -46,7 +50,8 @@ if __name__ == '__main__':
     htcButton.txCtrl = RCPButtonRequest()
     htcButton.txCtrl.pttTarget = ButtonTarget.FRONT_PTT
     htcButton.txCtrl.pttOperation = ButtonOperation.PRESS
-    rcpPort.send(htcButton)
+    seqn = rcpPort.send(htcButton)
+
 
     logging.info("Waiting for a while...")
     time.sleep(10)
@@ -54,7 +59,7 @@ if __name__ == '__main__':
 
     logging.info("Keying down...")
     htcButton.txCtrl.pttOperation = ButtonOperation.RELEASE
-    rcpPort.send(htcButton)
+    seqn = rcpPort.send(htcButton)
 
     logging.info("Shutting down...")
 

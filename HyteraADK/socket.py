@@ -52,11 +52,17 @@ class ADKSocket(object):
         self._seq = 0
         self._repeaterAddr = None
 
+        # Initialise default ACK timeout
+        self.ackTimeout = 2
+
         # Create a pipe to use for killing the rx thread
         self._r_pipe, self._w_pipe = os.pipe()
 
         # Create the transmit queue
         self._txqueue = queue.Queue()
+
+        # Create the ack queue
+        self._ackqueue = queue.Queue()
 
         # Open the socket
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -77,17 +83,39 @@ class ADKSocket(object):
         return self._repeaterAddr is not None
 
 
-    def send(self, packet):
-        """ Send a packet to the repeater and wait for a reply """
+    def send(self, packet, callback=None):
+        """ Send a packet to the repeater """
         if packet is None:
             raise ValueError("Cannot send a null packet")
+
+        # Is this an RTP packet?
         if isinstance(packet, RTPPacket):
-            # RTP packet -- send as is
+            # RTP packet -- send as is. Doesn't require acknowledgement.
             self._txqueue.put(packet)
-        else:
-            # Hytera form packet -- update the sequence ID and send
-            packet.hytSeqID = self._getSeq()
-            self._txqueue.put(packet)
+            return None
+
+        # Will this packet result in an acknowledgement?
+        ackReq = False
+        if isinstance(packet, HSTRPToRadio):
+            ackReq = True
+
+            # Do we have a callback assigned? If so, set it up
+            if callback is not None:
+                # FIXME Implement callback. 
+                raise ValueError("Callback is not implemented!")
+
+        # Hytera form packet -- update the sequence ID and send it to the radio
+        packet.hytSeqID = self._getSeq()
+        self._txqueue.put(packet)
+
+        # If this is a blocking operation -- wait for the ack
+        if ackReq and callback is None:
+            # Wait for the Ack
+            ackn = self.waitAck(self.ackTimeout)
+            log.debug("  Blocking send acknowledged, sent seq=%d, ack=%d" % (packet.hytSeqID, ackn))
+            # TODO validate the sequence number
+
+        return packet.hytSeqID
 
 
     def _heartbeatExpired(self):
@@ -175,7 +203,7 @@ class ADKSocket(object):
                 p = RTPPacket(data)
 
             if LOG_PACKET_RX:
-                if (not isinstance(p, HSTRPHeartbeat) and not isinstance(p, HSTRPSyn)) or LOG_HEARTBEATS:
+                if (not isinstance(p, (HSTRPHeartbeat, HSTRPSyn, HSTRPAck))) or LOG_HEARTBEATS:
                     log.debug("Packet received, addr='%s', data=%s" % (addr, p))
 
             # Non-SYN packet while disconnected? If so, ignore it.
@@ -224,6 +252,12 @@ class ADKSocket(object):
                     p.hytSeqID = 0      # Heartbeats always have a zero sequence ID
                     self._txqueue.put(p)
 
+            # Is this an acknowledgement?
+            elif isinstance(p, HSTRPAck):
+                log.debug("   Acknowledgement for seq=%d" % p.hytSeqID)
+                # Acknowledgement packet
+                self._ackqueue.put(p.hytSeqID)
+
             # Some other packet type?
             else:
                 log.warn("Rx packet, unrecognised: %s" % p)
@@ -233,4 +267,7 @@ class ADKSocket(object):
 
         log.info("RxThread shutting down...")
 
+
+    def waitAck(self, timeout=None):
+        return self._ackqueue.get(timeout=timeout)
 
