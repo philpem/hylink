@@ -6,6 +6,7 @@ import select
 import threading
 
 from .packet import *
+from .rtp import RTPPacket
 
 log = logging.getLogger(__name__)
 
@@ -80,8 +81,13 @@ class ADKSocket(object):
         """ Send a packet to the repeater and wait for a reply """
         if packet is None:
             raise ValueError("Cannot send a null packet")
-        packet.hytSeqID = self._getSeq()
-        self._txqueue.put(packet)
+        if isinstance(packet, RTPPacket):
+            # RTP packet -- send as is
+            self._txqueue.put(packet)
+        else:
+            # Hytera form packet -- update the sequence ID and send
+            packet.hytSeqID = self._getSeq()
+            self._txqueue.put(packet)
 
 
     def _heartbeatExpired(self):
@@ -160,7 +166,14 @@ class ADKSocket(object):
             if data is None or len(data) == 0:
                 log.warn("Null Packet received -- %s from %s" % (data, addr))
                 continue
-            p = HYTPacket.decode(data)
+
+            try:
+                p = HYTPacket.decode(data)
+            except HYTBadSignature:
+                # Bad Signature -- try to decode as RTP
+                # TODO - check if the radio is advertising RTP support for this port
+                p = RTPPacket(data)
+
             if LOG_PACKET_RX:
                 if (not isinstance(p, HSTRPHeartbeat) and not isinstance(p, HSTRPSyn)) or LOG_HEARTBEATS:
                     log.debug("Packet received, addr='%s', data=%s" % (addr, p))
@@ -172,7 +185,7 @@ class ADKSocket(object):
 
             # Is this a SYN?
             if isinstance(p, HSTRPSyn):
-                log.debug("SYN... Repeater is id %d, sockaddr %s" % (p.synRepeaterRadioID, addr))
+                log.debug("SYN... Repeater is id %d, sockaddr %s" % (p.rptHeader.synRepeaterRadioID, addr))
 
                 # Save the repeater address
                 self._repeaterAddr = addr
