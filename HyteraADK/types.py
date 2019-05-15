@@ -1,6 +1,6 @@
-from enum import Enum
+from enum import IntEnum
 
-class CallType(Enum):           # ADKCoreEngine_CLR/CallType.cs
+class CallType(IntEnum):           # ADKCoreEngine_CLR/CallType.cs
     PRIVATE             = 0             # Private call
     GROUP               = 1             # Group call
     ALL                 = 2             # All call
@@ -10,7 +10,7 @@ class CallType(Enum):           # ADKCoreEngine_CLR/CallType.cs
     PRIORITY_GROUP      = 6             # Priority group call
     PRIORITY_ALL        = 7             # Priority all call
 
-class ProcessType(Enum):
+class ProcessType(IntEnum):
     UNAVAILABLE         = 0
     VOICE_TX_OR_RX      = 1
     HANG_TIME           = 2
@@ -24,12 +24,12 @@ class ProcessType(Enum):
     EMERGENCY_END       = 10
 
 
-class TxCallMode(Enum):
+class TxCallMode(IntEnum):
     NORMAL = 0                  # Normal, single-connection mode
     SELECTIVE = 1               # Selective, multi-connection mode
 
 
-class TxCallStatus(Enum):       # Only used by B845 (Broadcast status report), which ADK doesn't seem to use
+class TxCallStatus(IntEnum):       # Only used by B845 (Broadcast status report), which ADK doesn't seem to use
     LOCAL_REPEATING = 0         # Repeating incoming traffic
     LOCAL_HANG_TIME = 1         # Repeating, in hang time
     IP_REPEATING = 2
@@ -48,7 +48,7 @@ class TxCallStatus(Enum):       # Only used by B845 (Broadcast status report), w
     LOCAL_PTT_TOT = 15
 
 
-class TxServiceType(Enum):
+class TxServiceType(IntEnum):
     NONE = 0
     VOICE = 1
     TMP = 2
@@ -58,7 +58,7 @@ class TxServiceType(Enum):
     SUPPLEMENTARY = 6
 
 
-class ButtonTarget(Enum):
+class ButtonTarget(IntEnum):
     # See Buttons.cs for more
     FRONT_PTT       = 0x03  # Front PTT switch (Internal PTT)
     BACK_PTT        = 0x1E  # Back PTT switch (External PTT)
@@ -66,14 +66,14 @@ class ButtonTarget(Enum):
     CHANNEL_DOWN    = 0x23  # Channel Down
 
 
-class ButtonOperation(Enum):
+class ButtonOperation(IntEnum):
     RELEASE     = 0     # Release PRESS
     PRESS       = 1     # Press and hold
     SHORT_PUSH  = 2     # Short press then release
     LONG_PUSH   = 3     # Long press then release
 
 
-class MessageHeader(Enum):
+class MessageHeader(IntEnum):
     RCP         = 0x02
     LP          = 0x08
     TMP         = 0x09
@@ -83,12 +83,12 @@ class MessageHeader(Enum):
     DDS         = 0x14      # Data Delivery States
 
 
-class SuccessFailResult(Enum):
+class SuccessFailResult(IntEnum):
     SUCCESS     = 0
     FAILURE     = 1
 
 
-class ResultCode(Enum):
+class ResultCode(IntEnum):
     # see dmrsvr.lua, line 395, "result_codes"
     OK                      = 0
     CHANNEL_BUSY            = 1
@@ -105,7 +105,7 @@ class ResultCode(Enum):
     INVALID_PARAMETER       = 12
 
 
-class StatusParameter(Enum):
+class StatusParameter(IntEnum):
     STATUS_OF_ALL_CHANNELS      = 0     # Status and parameter of all channels
     SQUELCH_LEVEL               = 1     # Squelch level for analog channel (0=open, 1=normal, 2=tight)
     CTCSS_CDCSS_MATCH_STATUS    = 2     # CDCSS/CTCSS match status (analog) (0=no match, 1=match)
@@ -119,12 +119,12 @@ class StatusParameter(Enum):
     CARRIER_STATUS              = 10    # Carrier status (0=not present, 1=present)
 
 
-class StatusValueType(Enum):
+class StatusValueType(IntEnum):
     LEVEL                       = 0
     DB_VALUE                    = 1
     ABANDON                     = 2
 
-class TMSResultCode(Enum):
+class TMSResultCode(IntEnum):
     OK                      = 0
     FAIL                    = 1
     # 2 unknown
