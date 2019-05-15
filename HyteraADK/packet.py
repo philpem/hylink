@@ -97,6 +97,7 @@ class HSTRPToRadio(HYTPacket):
     def __init__(self, data = None):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
+        self.hytPktType = self.TYPE
 
         if False:
             if data is not None:
@@ -237,7 +238,7 @@ class HSTRPFromRadio(HYTPacket):
                 log.debug("HSTRPBroadcast --> data %s" % 'None')
 
         # This is a broadcast header followed by a TxCtrlBase subclass
-        self.bcHeader = RepeaterHeader(self.hytPayload)
+        self.rptHeader = RepeaterHeader(self.hytPayload[:9])
         self.txCtrl = TxCtrlBase.factory(self.hytPayload[9:])
 
 
@@ -250,8 +251,8 @@ class HSTRPFromRadio(HYTPacket):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: type 0x%02X, seqid %d -- bcHeader %s, txctrl %s >" % \
-                (type(self).__name__, self.hytPktType, self.hytSeqID, self.bcHeader, self.txCtrl)
+        return "<%s: type 0x%02X, seqid %d -- rptHeader %s, txctrl %s >" % \
+                (type(self).__name__, self.hytPktType, self.hytSeqID, self.rptHeader, self.txCtrl)
 
 
 
