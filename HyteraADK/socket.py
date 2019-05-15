@@ -21,6 +21,8 @@ LOG_NONSYN = False
 HEARTBEAT_TIMEOUT = 30  # seconds
 
 class Watchdog(object):
+    """ Watchdog timer """
+
     def __init__(self, timeout, userHandler=None):  # timeout in seconds
         """ Create a Watchdog Timer """
         self.timeout = timeout

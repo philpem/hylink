@@ -10,8 +10,8 @@ class ADKDefaultPorts(IntEnum):
     TP2     = 30006         # Telemetry Protocol, ts2
     TMP1    = 30007         # Text Message Protocol (TMP/TMS), ts1        http://www.hytera.com/mena/navigation.htm?newsId=9086&columnType=news
     TMP2    = 30008         # Text Message Protocol (TMP/TMS), ts2
-    RCP1    = 30009         # Radio Call Control Protocol, ts1  http://www.hytera.com/mena/navigation.htm?newsId=9085&columnType=news
-    RCP2    = 30010         # Radio Call Control Protocol, ts2
+    RCP1    = 30009         # Radio Control Protocol, ts1  http://www.hytera.com/mena/navigation.htm?newsId=9085&columnType=news
+    RCP2    = 30010         # Radio Control Protocol, ts2
             # DTP 1 not specified       Data Transfer Protocol      http://www.hytera.com/mena/navigation.htm?newsId=9087&columnType=news
             # DTP 2 not specified       Data Transfer Protocol
             # Self Defined Data 1 not specified
@@ -22,8 +22,8 @@ class ADKDefaultPorts(IntEnum):
     RTPAnalog = 30016       # Real Time Protocol, analog
     E2E1    = 30017         # E2E = ???
     E2E2    = 30018         # E2E = ???
-    SDM1    = 3017          # Short Data Messaging
-    SDM2    = 3018          # Short Data Messaging
+    SDM1    = 3017          # Short Data Messaging / Self-Defined Message (Works Order)
+    SDM2    = 3018          # Short Data Messaging / Self-Defined Message (Works Order)
 
     # RRS Port ID       115
     # GPS Port ID       116
