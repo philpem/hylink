@@ -1,3 +1,21 @@
+"""
+
+ADK Repeater Interface
+
+Socket protocol helper
+
+TODO:
+    Implement retry timer for HSTRPToRadio (dispatch -> radio message)
+        The radio should ack these. Keep retrying every {T} seconds until it does, or until {R} retries (e.g. 2 seconds and 5 retries)
+
+    Review the log messages, log switches and other such fluff
+
+    Keep track of more than one repeater -- track them via Radio ID
+
+    Higher-level repeater interface to sit on top of this
+
+"""
+
 import logging
 import os
 import queue
@@ -10,14 +28,14 @@ from .rtp import RTPPacket
 
 log = logging.getLogger(__name__)
 
-
 # Log packets being tx'd/rx'd
-LOG_PACKET_RX = True
+LOG_PACKET_RX = False
 LOG_PACKET_TX = False
 # Log heartbeats
 LOG_HEARTBEATS = False
 # Log non-SYN packets in DISCONNECTED state
 LOG_NONSYN = False
+
 
 HEARTBEAT_TIMEOUT = 30  # seconds
 
@@ -54,6 +72,10 @@ class ADKSocket(object):
 
         # Initialise default ACK timeout
         self.ackTimeout = 2
+
+        # Initialise callbacks
+        self._rcpRxCallback = None
+        self._rtpRxCallback = None
 
         # Create a pipe to use for killing the rx thread
         self._r_pipe, self._w_pipe = os.pipe()
@@ -203,6 +225,11 @@ class ADKSocket(object):
                 p = RTPPacket(data)
                 log.debug("RTP packet received, %s" % p)
 
+                # Pass it onto the RTP callback, if any
+                if self._rtpRxCallback is not None:
+                    self._rtpRxCallback(p)
+
+
             if LOG_PACKET_RX:
                 if (not isinstance(p, (HSTRPHeartbeat, HSTRPSyn, HSTRPAck))) or LOG_HEARTBEATS:
                     log.debug("Packet received, addr='%s', data=%s" % (addr, p))
@@ -266,6 +293,22 @@ class ADKSocket(object):
                     # No callback, put the ack in the queue (for waitAck)
                     self._ackqueue.put(p.hytSeqID)
 
+
+            elif isinstance(p, HSTRPFromRadio):
+                log.debug("Message from radio: %s" % p)
+
+                if self._repeaterAddr is not None:
+                    # Acknowledge the message
+                    ack = HSTRPAck()
+                    ack.hytSeqID = p.hytSeqID
+                    self._txqueue.put(ack)
+
+                # Pass the message onto the callback if there is one
+                if self._rcpRxCallback is not None:
+                    self._rcpRxCallback(p)
+                else:
+                    log.info("  Received radio message, but no callback was registered.")
+
             # Some other packet type?
             else:
                 log.warn("Rx packet, unrecognised: %s" % p)
@@ -290,4 +333,36 @@ class ADKSocket(object):
             return self._ackqueue.get(block=False)
         else:
             raise ValueError("Invalid timeout value, must be None or >= 0")
+
+
+    def setMsgCallback(self, callback):
+        """
+        Set the broadcast callback.
+
+        The receive callback is called whenever the repeater sends a broadcast
+        or other unsolicited RCP packet (HSTRPFromRadio type).
+
+        The callback should be defined as:
+
+          def callback(packet):
+
+        "packet" is the HSTRPFromRadio packet.
+        """
+        self._rcpRxCallback = callback
+
+
+    def setRTPCallback(self, callback):
+        """
+        Set the RTP callback.
+
+        The RTP callback is called whenever a packet of RTP audio data is
+        received.
+
+        The callback should be defined as:
+
+          def callback(packet):
+
+        "packet" is an rtp.RTPPacket instance.
+        """
+        self._rtpRxCallback = callback
 
