@@ -238,8 +238,8 @@ class HSTRPFromRadio(HYTPacket):
                 log.debug("HSTRPBroadcast --> data %s" % 'None')
 
         # This is a broadcast header followed by a TxCtrlBase subclass
-        self.rptHeader = RepeaterHeader(self.hytPayload[:9])
-        self.txCtrl = TxCtrlBase.factory(self.hytPayload[9:])
+        self.rptHeader = RepeaterHeader(self.hytPayload)
+        self.txCtrl = TxCtrlBase.factory(self.hytPayload[len(self.rptHeader):])
 
 
     def __bytes__(self):
@@ -283,6 +283,7 @@ class HSTRPSyn(HYTPacket):
         raise NotImplementedError("It is not possible to serialize a SYN packet for transmission")
         #return super().__bytes__()
 
+
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: type 0x%02X, seqid %d, rptHeader %s >" % (type(self).__name__, self.hytPktType, self.hytSeqID, self.rptHeader)
@@ -303,10 +304,43 @@ class RepeaterHeader(object):
             # No-args is not allowed
             raise NotImplementedError("It is not possible to create a RepeaterHeader with the no-args constructor")
 
-        # Not no-args -- decode the payload
-        self.unknown1, self.unknown2, self.synRepeaterRadioID, self.flags3, self.unknown4, self.synTimeslot = \
-                struct.unpack_from('>BBLBBB', data)
-        self._payload_r = data
+        # The Repeater Header is a sequence of tag-length-value blocks.
+        # Tag OR 0x80 means further TLVs follow
+
+        tlv = {}
+        ofs = 0
+        tag = 0x80
+        while (tag & 0x80) != 0:
+            # read tag,length
+            tag,length = struct.unpack_from('BB', data, ofs)
+            ofs += 2
+
+            # read payload
+            tlv[tag & 0x7F] = data[ofs:ofs+length]
+            ofs += length
+
+        # Decode TLVs
+        self.hasRTP = False
+        self.synRepeaterRadioID = None
+        self.synTimeslot = None
+
+        if 1 in tlv:
+            # Tag 1 is zero length and only sent if RTP is available
+            self.hasRTP = True
+        if 3 in tlv:
+            # Tag 3 is Repeater ID
+            self.synRepeaterRadioID = struct.unpack_from('>L', tlv[3])[0]
+        if 4 in tlv:
+            # Tag 4 is Timeslot
+            self.synTimeslot = struct.unpack_from('B', tlv[4])[0]
+
+        self.tlvData = tlv
+        self._tlvLen = ofs
+
+
+    def __len__(self):
+        """ Return the number of bytes this repeater header occupied """
+        return self._tlvLen
 
 
     def __bytes__(self):
@@ -316,14 +350,13 @@ class RepeaterHeader(object):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        if self.flags3 & 0x80:
-            hasRTP = ", RTP"
+        if self.hasRTP:
+            hasRTP = ", has RTP"
         else:
             hasRTP = ""
-        return "<%s: [%s] unknowns(hex %02X %02X %02X %02X)%s, repeater ID %d, timeslot %d>" % \
-                (type(self).__name__, ' '.join(["%02X"%x for x in self._payload_r]), \
-                self.unknown1, self.unknown2, self.flags3, self.unknown4, \
-                hasRTP, self.synRepeaterRadioID, self.synTimeslot)
+
+        return "<%s: repeater ID %s, timeslot %s%s>" % \
+                (type(self).__name__, self.synRepeaterRadioID, self.synTimeslot, hasRTP)
 
 
 
