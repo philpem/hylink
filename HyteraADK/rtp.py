@@ -34,6 +34,7 @@ class RTPPacket(object):
             self.ssrc           = 0         # Synchronising source
             self.csrc           = []        # CSRC
             self.payload        = bytes()
+            return
 
         # RTP packet has a fixed 12-byte header followed by some optional fields.
         # Start by decoding the fixed header
