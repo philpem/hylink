@@ -1,5 +1,6 @@
 from enum import IntEnum
 
+
 class CallType(IntEnum):           # ADKCoreEngine_CLR/CallType.cs
     PRIVATE             = 0             # Private call
     GROUP               = 1             # Group call
@@ -9,6 +10,7 @@ class CallType(IntEnum):           # ADKCoreEngine_CLR/CallType.cs
     PRIORITY_PRIVATE    = 5             # Priority private call
     PRIORITY_GROUP      = 6             # Priority group call
     PRIORITY_ALL        = 7             # Priority all call
+
 
 class ProcessType(IntEnum):
     UNAVAILABLE         = 0
@@ -124,7 +126,9 @@ class StatusValueType(IntEnum):
     DB_VALUE                    = 1
     ABANDON                     = 2
 
+
 class TMSResultCode(IntEnum):
+    """ Text Message Service (TMS) result code"""
     OK                      = 0
     FAIL                    = 1
     # 2 unknown

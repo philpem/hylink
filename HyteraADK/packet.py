@@ -28,7 +28,7 @@ class HYTPacket(object):
     # HYT signature prefix
     __HYTSIG = b'\x32\x42\x00'
 
-    def __init__(self, data = None):
+    def __init__(self, data=None):
         """
         Convert a block of bytes into a new HYTPacket.
 
@@ -36,6 +36,7 @@ class HYTPacket(object):
         """
         if data is None:
             self.hytPktType = 0xFF
+            # noinspection PyPep8
             self.hytSeqID   = 1
             self.hytPayload = b''
             return
@@ -50,19 +51,17 @@ class HYTPacket(object):
 
         # De-encapsulate the fields -- TODO refactor and do this with struct.decode
         self.hytPktType = pktType
+        # noinspection PyPep8
         self.hytSeqID   = seqid
         self.hytPayload = data[6:]
-
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         return self.__HYTSIG + struct.pack('>BH', self.hytPktType, self.hytSeqID) + self.hytPayload
 
-
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
-
 
     @staticmethod
     def decode(data):
@@ -83,7 +82,6 @@ class HYTPacket(object):
             raise HYTUnhandledType("Unhandled HYT packet class 0x%02X" % p.hytPktType)
 
 
-
 ####################################
 #
 # HSTRP packet subtypes
@@ -94,31 +92,19 @@ class HSTRPToRadio(HYTPacket):
     """ HYT Transmitter Control packet """
     TYPE = 0x00
 
-    def __init__(self, data = None):
+    def __init__(self, data=None):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
         self.hytPktType = self.TYPE
 
-        if False:
-            if data is not None:
-                log.debug("HSTRPTxCtrl --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
-            else:
-                log.debug("HSTRPTxCtrl --> no data")
-
         # Decode the payload -- it's a TxCtrl block
         self.txCtrl = TxCtrlBase.factory(self.hytPayload)
-
-        if False:
-            log.debug("HSTRPTxCtrl --> decode  %s" % self.txCtrl)
-
-
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # A heartbeat has no payload.
         self.hytPayload = bytes(self.txCtrl)
         return super().__bytes__()
-
 
     def __repr__(self):
         """ Convert this packet into a string representation """
@@ -128,12 +114,11 @@ class HSTRPToRadio(HYTPacket):
             return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
 
-
 class HSTRPAck(HYTPacket):
     """ HYT ACK packet, sent by IPDIS or the repeater to acknowledge receipt of a packet """
     TYPE = 0x01
 
-    def __init__(self, data = None):
+    def __init__(self, data=None):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
 
@@ -144,25 +129,22 @@ class HSTRPAck(HYTPacket):
 
         # An ACK has no payload.
 
-
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # An ACK has no payload.
         self.hytPayload = b''
         return super().__bytes__()
 
-
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
-
 
 
 class HSTRPHeartbeat(HYTPacket):
-    """ HYT Heartbeat / Keepalive packet, sent by IPDIS or the repeater to keep the connection alive. Needs to be acked. """
+    """ HYT Heartbeat / Keepalive packet, sent by IPDIS or the repeater to keep the connection alive. """
     TYPE = 0x02
 
-    def __init__(self, data = None):
+    def __init__(self, data=None):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
 
@@ -173,25 +155,22 @@ class HSTRPHeartbeat(HYTPacket):
 
         # A heartbeat has no payload.
 
-
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # A heartbeat has no payload.
         self.hytPayload = b''
         return super().__bytes__()
 
-
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
-
 
 
 class HSTRPSynAck(HYTPacket):
     """ HYT SYN-ACK packet, sent by IPDIS to repeater when a HSTRPSyn packet is received """
     TYPE = 0x05
 
-    def __init__(self, data = None):
+    def __init__(self, data=None):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
 
@@ -202,25 +181,22 @@ class HSTRPSynAck(HYTPacket):
 
         # A SYN-ACK has no payload.
 
-
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # A SYN-ACK has no payload.
         self.hytPayload = b''
         return super().__bytes__()
 
-
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
-
 
 
 class HSTRPFromRadio(HYTPacket):
     """ HYT Repeater Reply/Broadcast packet """
     TYPE = 0x20
 
-    def __init__(self, data = None):
+    def __init__(self, data=None):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
 
@@ -229,38 +205,28 @@ class HSTRPFromRadio(HYTPacket):
             self.hytPktType = self.TYPE
             # Cannot create no-args SYN packets, they're only supposed to be
             # sent by the repeater
-            raise NotImplementedError("It is not possible to create a reply/broadcast packet with the no-args constructor")
-
-        if False:
-            if data is not None:
-                log.debug("HSTRPBroadcast --> payload %s" % ' '.join(["%02X"%x for x in self.hytPayload]))
-            else:
-                log.debug("HSTRPBroadcast --> data %s" % 'None')
+            raise NotImplementedError("It is not possible to create an empty FromRadio packet")
 
         # This is a broadcast header followed by a TxCtrlBase subclass
         self.rptHeader = RepeaterHeader(self.hytPayload)
         self.txCtrl = TxCtrlBase.factory(self.hytPayload[len(self.rptHeader):])
 
-
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # Throw an exception because user code shouldn't be trying to send SYN packets?
-        raise NotImplementedError("It is not possible to serialize a reply/broadcast packet for transmission")
-        #return super().__bytes__()
-
+        raise NotImplementedError("It is not possible to serialize a FromRadio packet")
 
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: type 0x%02X, seqid %d -- rptHeader %s, txctrl %s >" % \
-                (type(self).__name__, self.hytPktType, self.hytSeqID, self.rptHeader, self.txCtrl)
-
+               (type(self).__name__, self.hytPktType, self.hytSeqID, self.rptHeader, self.txCtrl)
 
 
 class HSTRPSyn(HYTPacket):
     """ HYT Repeater Announcement (SYN) packet """
     TYPE = 0x24
 
-    def __init__(self, data = None):
+    def __init__(self, data=None):
         # Decode the packet as HYT first. We work on the payload data.
         super().__init__(data)
 
@@ -276,18 +242,14 @@ class HSTRPSyn(HYTPacket):
         # Decode the payload
         self.rptHeader = RepeaterHeader(self.hytPayload)
 
-
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # Throw an exception because user code shouldn't be trying to send SYN packets?
         raise NotImplementedError("It is not possible to serialize a SYN packet for transmission")
-        #return super().__bytes__()
-
 
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: type 0x%02X, seqid %d, rptHeader %s >" % (type(self).__name__, self.hytPktType, self.hytSeqID, self.rptHeader)
-
 
 
 ###################################################
@@ -312,7 +274,7 @@ class RepeaterHeader(object):
         tag = 0x80
         while (tag & 0x80) != 0:
             # read tag,length
-            tag,length = struct.unpack_from('BB', data, ofs)
+            tag, length = struct.unpack_from('BB', data, ofs)
             ofs += 2
 
             # read payload
@@ -337,16 +299,13 @@ class RepeaterHeader(object):
         self.tlvData = tlv
         self._tlvLen = ofs
 
-
     def __len__(self):
         """ Return the number of bytes this repeater header occupied """
         return self._tlvLen
 
-
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         raise NotImplemented("It is not reasonable to convert a RepeaterHeader to bytes")
-
 
     def __repr__(self):
         """ Convert this packet into a string representation """
@@ -356,8 +315,7 @@ class RepeaterHeader(object):
             hasRTP = ""
 
         return "<%s: repeater ID %s, timeslot %s%s>" % \
-                (type(self).__name__, self.synRepeaterRadioID, self.synTimeslot, hasRTP)
-
+               (type(self).__name__, self.synRepeaterRadioID, self.synTimeslot, hasRTP)
 
 
 ###################################################
@@ -405,7 +363,6 @@ class TxCtrlBase(object):
         if csum != checksum:
             raise HYTPacketDataError("Invalid packet checksum")
 
-
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # For some unknown reason, RCP is little-endian while every other protocol is big-endian
@@ -426,7 +383,6 @@ class TxCtrlBase(object):
         data += struct.pack("BB", csum, 0x03)
 
         return data
-
 
     @staticmethod
     def factory(data):
@@ -460,7 +416,7 @@ class RCPButtonRequest(TxCtrlBase):
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x0041
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -474,6 +430,7 @@ class RCPButtonRequest(TxCtrlBase):
 
         # valid packet
         self.pttTarget, self.pttOperation = struct.unpack('<BB', self.txcPayload)
+        # noinspection PyPep8
         self.pttTarget    = ButtonTarget(self.pttTarget)
         self.pttOperation = ButtonOperation(self.pttOperation)
 
@@ -492,7 +449,7 @@ class RCPButtonResponse(TxCtrlBase):
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x8041
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -520,7 +477,7 @@ class RCPChannelStatusOrParameterCheckRequest(TxCtrlBase):
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x00E7
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -553,7 +510,7 @@ class RCPChannelStatusOrParameterCheckResponse(TxCtrlBase):
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x80E7
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -588,7 +545,7 @@ class RCPCallRequest(TxCtrlBase):
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x0841
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -620,7 +577,7 @@ class RCPCallResponse(TxCtrlBase):
     MSGHDR = MessageHeader.RCP
     OPCODE = 0x8841
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -650,7 +607,7 @@ class RCPBroadcastTransmitStatus(TxCtrlBase):
     MSGHDR = MessageHeader.RCP
     OPCODE = 0xB843
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -660,12 +617,10 @@ class RCPBroadcastTransmitStatus(TxCtrlBase):
         if txc is None:
             # empty packet
             raise NotImplemented()
-            #self.result = 0
-            #return
 
         # valid packet
         self.process, self.source, self.callType, self.targetID = \
-                struct.unpack_from("<HHHI", self.txcPayload)
+            struct.unpack_from("<HHHI", self.txcPayload)
 
         self.process = ProcessType(self.process)
         # TODO source: RCPResultCode?
@@ -673,14 +628,12 @@ class RCPBroadcastTransmitStatus(TxCtrlBase):
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
-        #self.txcPayload = struct.pack('<B', self.result)
-        #return super().__bytes__()
         raise NotImplemented()
 
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: process %s, source %s, calltype %s, target %d>" % \
-                (type(self).__name__, self.process, self.source, self.callType, self.targetID)
+               (type(self).__name__, self.process, self.source, self.callType, self.targetID)
 
 
 class RCPRepeaterBroadcastTransmitStatus(TxCtrlBase):
@@ -688,7 +641,7 @@ class RCPRepeaterBroadcastTransmitStatus(TxCtrlBase):
     MSGHDR = MessageHeader.RCP
     OPCODE = 0xB845
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -698,12 +651,10 @@ class RCPRepeaterBroadcastTransmitStatus(TxCtrlBase):
         if txc is None:
             # empty packet
             raise NotImplemented()
-            #self.result = 0
-            #return
 
         # valid packet
         self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID = \
-                struct.unpack_from("<HHHHII", self.txcPayload)
+            struct.unpack_from("<HHHHII", self.txcPayload)
         self.mode = TxCallMode(self.mode)
         self.status = TxCallStatus(self.status)
         self.serviceType = TxServiceType(self.serviceType)
@@ -711,14 +662,12 @@ class RCPRepeaterBroadcastTransmitStatus(TxCtrlBase):
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
-        #self.txcPayload = struct.pack('<B', self.result)
-        #return super().__bytes__()
         raise NotImplemented()
 
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: mode %s, status %s, svctype %s, calltype %s, target %d, sender %d>" % \
-                (type(self).__name__, self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID)
+               (type(self).__name__, self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID)
 
 
 #############################################################################
@@ -733,7 +682,7 @@ class RRSOffline(TxCtrlBase):
     MSGHDR = MessageHeader.RRS
     OPCODE = 0x0001
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -763,7 +712,7 @@ class RRSRegister(TxCtrlBase):
     MSGHDR = MessageHeader.RRS
     OPCODE = 0x0003
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -809,7 +758,7 @@ class TMPPrivateMessageNeedAck(TxCtrlBase):
     MSGHDR = MessageHeader.TMP
     OPCODE = 0x00A1
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -841,7 +790,7 @@ class TMPPrivateMessageAnswer(TxCtrlBase):
     MSGHDR = MessageHeader.TMP
     OPCODE = 0x00A2
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -872,7 +821,7 @@ class TMPGroupMessage(TxCtrlBase):
     MSGHDR = MessageHeader.TMP
     OPCODE = 0x00B1
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -904,7 +853,7 @@ class TMPGroupMessageAnswer(TxCtrlBase):
     MSGHDR = MessageHeader.TMP
     OPCODE = 0x00B2
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 
@@ -935,7 +884,7 @@ class TMPPrivateMessageNoAck(TxCtrlBase):
     MSGHDR = MessageHeader.TMP
     OPCODE = 0x80A1
 
-    def __init__(self, txc = None):
+    def __init__(self, txc=None):
         # Decode the Tx Call payload first
         super().__init__(txc)
 

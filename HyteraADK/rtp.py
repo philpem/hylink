@@ -25,8 +25,7 @@ class RTPPacket(object):
         # If no data is passed in, create an empty default packet
         if data is None:
             self.rtpVersion     = 2         # "V" - RTP version
-            self.extension      = None      # "X" - extension present
-                # Extension = {'type': format, 'data': sequence of 32bit unsigned integers}
+            self.extension      = None      # Extension words: {'type': format, 'data': sequence of 32bit uints}
             self.marker         = False     # "M" - Marker bit
             self.payloadType    = 0         # "PT" - Payload type
             self.seq            = 0         # Sequence number
@@ -72,7 +71,7 @@ class RTPPacket(object):
             edata = struct.unpack_from(fmt, data, payloadStart)
             payloadStart += (elen*4)
 
-            self.extension = {'type':efmt, 'data':edata}
+            self.extension = {'type': efmt, 'data': edata}
 
         # Figure out how much padding (if any) to remove
         if padding:
@@ -81,7 +80,6 @@ class RTPPacket(object):
             self.payload = data[payloadStart:-npadding]
         else:
             self.payload = data[payloadStart:]
-
 
     def __bytes__(self):
         """ Convert the RTP packet to a byte representation """
@@ -125,7 +123,6 @@ class RTPPacket(object):
         # We don't do padding -- perhaps that should be a TODO.
         return buf
 
-
     def __repr__(self):
         # Try to decode the payload type; set string to "???" if this fails
         try:
@@ -133,5 +130,6 @@ class RTPPacket(object):
         except:
             rty = "???"
 
-        return "<RTP: version %d, pty %d (%s), seqid=%d, tm=%d, %d-byte payload>" % (self.rtpVersion, self.payloadType, rty, self.seq, self.timestamp, len(self.payload))
+        return "<RTP: version %d, pty %d (%s), seqid=%d, tm=%d, %d-byte payload>" % \
+               (self.rtpVersion, self.payloadType, rty, self.seq, self.timestamp, len(self.payload))
 

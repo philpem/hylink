@@ -16,7 +16,6 @@ TODO:
 
 """
 
-import logging
 import os
 import queue
 import socket
@@ -38,6 +37,7 @@ LOG_NONSYN = False
 
 
 HEARTBEAT_TIMEOUT = 30  # seconds
+
 
 class Watchdog(object):
     """ Watchdog timer """
@@ -95,16 +95,15 @@ class ADKSocket(object):
         self._wdt = Watchdog(HEARTBEAT_TIMEOUT, self._heartbeatExpired)
 
         # Create and start the receive and transmit threads
-        self._rxthread = threading.Thread(target=self._rxThreadProc, name="%s-rx.%d" % (name,port))
-        self._txthread = threading.Thread(target=self._txThreadProc, name="%s-tx.%d" % (name,port))
+        self._running = False
+        self._rxthread = threading.Thread(target=self._rxThreadProc, name="%s-rx.%d" % (name, port))
+        self._txthread = threading.Thread(target=self._txThreadProc, name="%s-tx.%d" % (name, port))
         self._rxthread.start()
         self._txthread.start()
-
 
     def isConnected(self):
         """ Returns true if the repeater is connected, otherwise false """
         return self._repeaterAddr is not None
-
 
     def send(self, packet, callback=None):
         """ Send a packet to the repeater """
@@ -139,14 +138,12 @@ class ADKSocket(object):
 
         return packet.hytSeqID
 
-
     def _heartbeatExpired(self):
         """
         Called by the Watchdog task when we haven't received a packet in a while.
         """
         log.error("WATCHDOG: No packets in %d seconds -- disconnecting" % HEARTBEAT_TIMEOUT)
         self._repeaterAddr = None
-
 
     def stop(self):
         """ Shut down the tx/rx threads """
@@ -173,7 +170,6 @@ class ADKSocket(object):
         self._seq = (self._seq + 1) & 0xFFFF
         return x
 
-
     def _txThreadProc(self):
         log.debug("TxThread running")
 
@@ -197,7 +193,6 @@ class ADKSocket(object):
 
         log.info("TxThread shutting down...")
 
-
     def _rxThreadProc(self):
         self._running = True
 
@@ -212,9 +207,9 @@ class ADKSocket(object):
                 continue
 
             # Receive a packet
-            data,addr = self._sock.recvfrom(1024)
+            data, addr = self._sock.recvfrom(1024)
             if data is None or len(data) == 0:
-                log.warn("Null Packet received -- %s from %s" % (data, addr))
+                log.warning("Null Packet received -- %s from %s" % (data, addr))
                 continue
 
             try:
@@ -228,17 +223,15 @@ class ADKSocket(object):
                 # Pass it onto the RTP callback, if any
                 if self._rtpRxCallback is not None:
                     self._rtpRxCallback(p)
-            except e:
+            except:
                 # Garbage packet. Log it, then carry on
                 log.exception('Exception in receive packet hander')
-                log.error('Packet data for preceding exception: { %s }' % ' '.join(['%02X'%x for x in data]))
+                log.error('Packet data for preceding exception: { %s }' % ' '.join(['%02X' % x for x in data]))
                 continue
-
 
             if LOG_PACKET_RX:
                 if (not isinstance(p, (HSTRPHeartbeat, HSTRPSyn, HSTRPAck))) or LOG_HEARTBEATS:
                     log.debug("Packet received, addr='%s', data=%s" % (addr, p))
-
 
             # Non-SYN packet while disconnected? If so, ignore it.
             if self._repeaterAddr is None and not isinstance(p, HSTRPSyn) and LOG_NONSYN:
@@ -297,10 +290,10 @@ class ADKSocket(object):
                     # No callback, put the ack in the queue (for waitAck)
                     self._ackqueue.put(p.hytSeqID)
 
-
+            # Is this a message from the radio?
             elif isinstance(p, HSTRPFromRadio):
-                log.debug("Message from radio: %s" % p)
-
+                # Don't ack the message if the repeater is not connected
+                # FIXME - should we just log this and abort?
                 if self._repeaterAddr is not None:
                     # Acknowledge the message
                     ack = HSTRPAck()
@@ -311,17 +304,16 @@ class ADKSocket(object):
                 if self._rcpRxCallback is not None:
                     self._rcpRxCallback(p)
                 else:
-                    log.info("  Received radio message, but no callback was registered.")
+                    log.info("RX: No callback registered for packet: %s" % p)
 
             # Some other packet type?
             else:
-                log.warn("Rx packet, unrecognised: %s" % p)
+                log.warning("Rx packet, unrecognised: %s" % p)
 
             # Start/Reset the watchdog timer (rx'd packet)
             self._wdt.reset()
 
         log.info("RxThread shutting down...")
-
 
     def waitAck(self, timeout=None):
         """
@@ -338,7 +330,6 @@ class ADKSocket(object):
         else:
             raise ValueError("Invalid timeout value, must be None or >= 0")
 
-
     def setMsgCallback(self, callback):
         """
         Set the broadcast callback.
@@ -353,7 +344,6 @@ class ADKSocket(object):
         "packet" is the HSTRPFromRadio packet.
         """
         self._rcpRxCallback = callback
-
 
     def setRTPCallback(self, callback):
         """

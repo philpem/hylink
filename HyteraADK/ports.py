@@ -12,10 +12,10 @@ class ADKDefaultPorts(IntEnum):
     TMP2    = 30008         # Text Message Protocol (TMP/TMS), ts2
     RCP1    = 30009         # Radio Control Protocol, ts1  http://www.hytera.com/mena/navigation.htm?newsId=9085&columnType=news
     RCP2    = 30010         # Radio Control Protocol, ts2
-            # DTP 1 not specified       Data Transfer Protocol      http://www.hytera.com/mena/navigation.htm?newsId=9087&columnType=news
-            # DTP 2 not specified       Data Transfer Protocol
-            # Self Defined Data 1 not specified
-            # Self Defined Data 2 not specified
+    # DTP 1 not specified       Data Transfer Protocol      http://www.hytera.com/mena/navigation.htm?newsId=9087&columnType=news
+    # DTP 2 not specified       Data Transfer Protocol
+    # Self Defined Data 1 not specified
+    # Self Defined Data 2 not specified
     RTP1    = 30012         # Real Time Protocol, ts1   -- audio data, G.711 uLAW, including Hytera ping packets (!)
     RTP2    = 30014         # Real Time Protocol, ts2   -- ""
     RCPAnalog = 30015       # Radio Call Control Protocol, analog audio

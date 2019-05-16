@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
-import logging
-import queue
 import time
 
-#from HyteraADK.packet import *
 from HyteraADK.ports import ADKDefaultPorts
 from HyteraADK.socket import ADKSocket
 from HyteraADK.packet import *
@@ -28,14 +25,12 @@ if __name__ == '__main__':
     rtpPort = ADKSocket(ADKDefaultPorts.RTP1)
     rcpPort = ADKSocket(ADKDefaultPorts.RCP1)
 
-
     # run for a while
     # TODO -- packet -- make this event driven (wait on an event queue)
     logging.info("Waiting for repeater connection")
     while (not rtpPort.isConnected()) or (not rcpPort.isConnected()):
         time.sleep(2)
     logging.info("Repeater connected!")
-
 
     # send txctrl call request
     logging.info("Sending Call request...")
@@ -45,7 +40,6 @@ if __name__ == '__main__':
     htc.txCtrl.destId = 1234
     seqn = rcpPort.send(htc)
 
-
     logging.info("Keying up...")
     htcButton = HSTRPToRadio()
     htcButton.txCtrl = RCPButtonRequest()
@@ -53,12 +47,13 @@ if __name__ == '__main__':
     htcButton.txCtrl.pttOperation = ButtonOperation.PRESS
     seqn = rcpPort.send(htcButton)
 
-
     logging.info("Sending some silence")
     import sys
     import audioop
-    W=2
-    sampToSignedBin = lambda data: b''.join(b.to_bytes(W, sys.byteorder, signed=True) for b in data)
+    W = 2
+
+    def sampToSignedBin(data):
+        return b''.join(b.to_bytes(W, sys.byteorder, signed=True) for b in data)
 
     SRATE = 8000        # sample rate Hz
     NSAMPS = 160        # number of samples per packet, is 20ms at 8kHz
@@ -67,12 +62,12 @@ if __name__ == '__main__':
     pkt.payload = audioop.lin2ulaw(sampToSignedBin([0]*NSAMPS), W)
     pkt.payloadType = 0   # PCM u-LAW
 
-    for i in range(round(SRATE / NSAMPS)): # generate one second worth of RTP frames
+    # generate one second worth of RTP frames
+    for i in range(round(SRATE / NSAMPS)):
         pkt.seq += 1
         pkt.timestamp += NSAMPS
         rtpPort.send(pkt)
         time.sleep(NSAMPS / SRATE)
-
 
     logging.info("Keying down...")
     htcButton.txCtrl.pttOperation = ButtonOperation.RELEASE
@@ -85,4 +80,3 @@ if __name__ == '__main__':
 
     rcpPort.stop()
     rtpPort.stop()
-

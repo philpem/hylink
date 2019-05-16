@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import logging
 import dpkt
 import sys
 import socket
@@ -32,23 +31,22 @@ def inet_to_str(inet):
 
 
 if len(sys.argv) < 2:
-    print("PCap reader for PyADK\n\n" + \
-            "Syntax:\n" + \
-            "\tptest.py <pcapfile>\n\n" + \
-            "Reads a Pcap packet trace from a file and plays it through PyADK.\n")
+    print("PCap reader for PyADK\n\n" +
+          "Syntax:\n" +
+          "\tptest.py <pcapfile>\n\n" +
+          "Reads a Pcap packet trace from a file and plays it through PyADK.\n")
     sys.exit(1)
 
 
 # Load pcap dump
 pcap = dpkt.pcapng.Reader(open(sys.argv[1], 'rb'))
 
-for ts,buf in pcap:
+for ts, buf in pcap:
     # unpack the Ethernet frame
     eth = dpkt.ethernet.Ethernet(buf)
 
     # make sure the Ethernet frame contains an IP packet
     if not isinstance(eth.data, dpkt.ip.IP):
-        #print(ts, "Not UDP -- is %s" % eth.data.__class__.__name__)
         continue
 
     # grab the data in the IP frame
@@ -71,6 +69,6 @@ for ts,buf in pcap:
 
         print('%15s:%5s(%-6s) %s' % (inet_to_str(ip.src), udp.dport, ADKDefaultPorts(udp.dport).name, h))
     except HYTBadSignature:
-        #print('%15s:%5s %s   !!!BAD_SIG  d=%s' % (inet_to_str(ip.src), udp.dport, '???', ' '.join(['%02X'%x for x in udp.data])))
+        # print('%15s:%5s %s   !!!BAD_SIG  d=%s' % (inet_to_str(ip.src), udp.dport, '???', ' '.join(['%02X'%x for x in udp.data])))
         pass
 
