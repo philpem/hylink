@@ -133,4 +133,5 @@ class RTPPacket(object):
         except:
             rty = "???"
 
-        return "RTP: version %d, pty %d (%s), seqid=%d, tm=%d, %d-byte payload" % (self.rtpVersion, self.payloadType, rty, self.seq, self.timestamp, len(self.payload))
+        return "<RTP: version %d, pty %d (%s), seqid=%d, tm=%d, %d-byte payload>" % (self.rtpVersion, self.payloadType, rty, self.seq, self.timestamp, len(self.payload))
+
