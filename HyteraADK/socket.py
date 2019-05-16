@@ -201,6 +201,7 @@ class ADKSocket(object):
                 # Bad Signature -- try to decode as RTP
                 # TODO - check if the radio is advertising RTP support for this port
                 p = RTPPacket(data)
+                log.debug("RTP packet received, %s" % p)
 
             if LOG_PACKET_RX:
                 if (not isinstance(p, (HSTRPHeartbeat, HSTRPSyn, HSTRPAck))) or LOG_HEARTBEATS:
