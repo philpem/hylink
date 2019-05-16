@@ -78,6 +78,9 @@ if __name__ == '__main__':
     htcButton.txCtrl.pttOperation = ButtonOperation.RELEASE
     seqn = rcpPort.send(htcButton)
 
+    # Wait for the last few packets to arrive
+    time.sleep(5)
+
     logging.info("Shutting down...")
 
     rcpPort.stop()
