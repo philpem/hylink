@@ -288,8 +288,6 @@ class ADKSocket(object):
 
             # Is this an acknowledgement?
             elif isinstance(p, HSTRPAck):
-                log.debug("   Acknowledgement for seq=%d" % p.hytSeqID)
-
                 # Is there an ACK callback registered for this sequence ID?
                 if p.hytSeqID in self._ackcallbacks:
                     # Callback registered, call it and remove it from the list
