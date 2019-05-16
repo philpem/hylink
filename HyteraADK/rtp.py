@@ -7,12 +7,15 @@ RTP packet handler with Hytera specialisations
 from enum import IntEnum
 import struct
 
+
 class RTPPayloadTypes(IntEnum):
-    HYTERA_PCMU = 0                         # G.711 mu-Law
-    HYTERA_PCMA = 8                         # G.711 a-Law
+    """ Hytera RTP packet payload type codes """
+    HYTERA_PCMU = 0                         # ITU-T G.711 mu-Law
+    HYTERA_PCMA = 8                         # ITU-T G.711 a-Law
 
 
 class RTPPacket(object):
+    """ Serialise and deserialise RTP (Real-Time Protocol) stream data """
 
     def __init__(self, data=None):
         """
@@ -101,7 +104,7 @@ class RTPPacket(object):
                 raise ValueError("CSRC length is limited to 15 entries")
             flags |= (len(self.csrc) << 24)
 
-        buf = struct.pack('!LLL', flags, timestamp, ssrc)
+        buf = struct.pack('!LLL', flags, self.timestamp, self.ssrc)
 
         # Append the CSRCs
         fmt = '!' + 'L'*len(self.csrc)
@@ -121,3 +124,12 @@ class RTPPacket(object):
         # We don't do padding -- perhaps that should be a TODO.
         return buf
 
+
+    def __repr__(self):
+        # Try to decode the payload type; set string to "???" if this fails
+        try:
+            rty = str(RTPPayloadTypes(self.payloadType))
+        except:
+            rty = "???"
+
+        return "RTP: version %d, pty %d (%s), seqid=%d, tm=%d, %d-byte payload" % (self.rtpVersion, self.payloadType, rty, self.seq, self.timestamp, len(self.payload))
