@@ -339,7 +339,6 @@ class TxCtrlBase(object):
     def __init__(self, data):
         # No-args constructor
         if data is None or len(data) == 0:
-            self.txcMsgHdr = 0
             self.txcReliable = False
             self.txcOpcode = None
             self.txcPayload = []
@@ -433,6 +432,7 @@ class RCPButtonRequest(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -464,6 +464,7 @@ class RCPButtonResponse(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -491,6 +492,7 @@ class RCPChannelStatusOrParameterCheckRequest(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -523,6 +525,7 @@ class RCPChannelStatusOrParameterCheckResponse(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             raise NotImplemented()
@@ -557,6 +560,7 @@ class RCPCallRequest(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -588,6 +592,7 @@ class RCPCallResponse(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -617,6 +622,7 @@ class RCPBroadcastTransmitStatus(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -654,6 +660,7 @@ class RCPRepeaterBroadcastTransmitStatus(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -698,6 +705,7 @@ class RRSOffline(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -727,6 +735,7 @@ class RRSRegister(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -772,6 +781,7 @@ class TMPPrivateMessageNeedAck(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -803,6 +813,7 @@ class TMPPrivateMessageAnswer(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -833,6 +844,7 @@ class TMPGroupMessage(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -864,6 +876,7 @@ class TMPGroupMessageAnswer(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
@@ -894,6 +907,7 @@ class TMPPrivateMessageNoAck(TxCtrlBase):
         super().__init__(txc)
 
         self.txcOpcode = self.OPCODE
+        self.txcMsgHdr = self.MSGHDR
 
         if txc is None:
             # empty packet
