@@ -228,11 +228,17 @@ class ADKSocket(object):
                 # Pass it onto the RTP callback, if any
                 if self._rtpRxCallback is not None:
                     self._rtpRxCallback(p)
+            except e:
+                # Garbage packet. Log it, then carry on
+                log.exception('Exception in receive packet hander')
+                log.error('Packet data for preceding exception: { %s }' % ' '.join(['%02X'%x for x in data]))
+                continue
 
 
             if LOG_PACKET_RX:
                 if (not isinstance(p, (HSTRPHeartbeat, HSTRPSyn, HSTRPAck))) or LOG_HEARTBEATS:
                     log.debug("Packet received, addr='%s', data=%s" % (addr, p))
+
 
             # Non-SYN packet while disconnected? If so, ignore it.
             if self._repeaterAddr is None and not isinstance(p, HSTRPSyn) and LOG_NONSYN:
