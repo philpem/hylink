@@ -9,6 +9,7 @@ from HyteraADK.ports import ADKDefaultPorts
 from HyteraADK.socket import ADKSocket
 from HyteraADK.packet import *
 from HyteraADK.types import *
+from HyteraADK.rtp import RTPPacket
 
 
 if __name__ == '__main__':
@@ -53,8 +54,24 @@ if __name__ == '__main__':
     seqn = rcpPort.send(htcButton)
 
 
-    logging.info("Waiting for a while...")
-    time.sleep(10)
+    logging.info("Sending some silence")
+    import sys
+    import audioop
+    W=2
+    sampToSignedBin = lambda data: b''.join(b.to_bytes(W, sys.byteorder, signed=True) for b in data)
+
+    SRATE = 8000        # sample rate Hz
+    NSAMPS = 160        # number of samples per packet, is 20ms at 8kHz
+
+    pkt = RTPPacket()
+    pkt.payload = audioop.lin2ulaw(sampToSignedBin([0]*NSAMPS), W)
+    pkt.payloadType = 0   # PCM u-LAW
+
+    for i in range(round(SRATE / NSAMPS)): # generate one second worth of RTP frames
+        pkt.seq += 1
+        pkt.timestamp += NSAMPS
+        rtpPort.send(pkt)
+        time.sleep(NSAMPS / SRATE)
 
 
     logging.info("Keying down...")
