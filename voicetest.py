@@ -14,7 +14,7 @@ from HyteraADK.types import *
 if __name__ == '__main__':
 
     # configure logging
-    logging.basicConfig(format='%(asctime)s [%(levelname)-7s] (%(threadName)s) %(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s [%(levelname)-7s] (%(threadName)-20s) %(message)s', level=logging.DEBUG)
 
     """
     socks = {}
