@@ -36,7 +36,6 @@ class HYTPacket(object):
         """
         if data is None:
             self.hytPktType = 0xFF
-            # noinspection PyPep8
             self.hytSeqID   = 1
             self.hytPayload = b''
             return
@@ -51,7 +50,6 @@ class HYTPacket(object):
 
         # De-encapsulate the fields -- TODO refactor and do this with struct.decode
         self.hytPktType = pktType
-        # noinspection PyPep8
         self.hytSeqID   = seqid
         self.hytPayload = data[6:]
 
@@ -430,7 +428,6 @@ class RCPButtonRequest(TxCtrlBase):
 
         # valid packet
         self.pttTarget, self.pttOperation = struct.unpack('<BB', self.txcPayload)
-        # noinspection PyPep8
         self.pttTarget    = ButtonTarget(self.pttTarget)
         self.pttOperation = ButtonOperation(self.pttOperation)
 
