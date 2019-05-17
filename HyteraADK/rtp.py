@@ -8,7 +8,7 @@ from enum import IntEnum
 import struct
 
 
-class RTPPayloadTypes(IntEnum):
+class RTPPayloadType(IntEnum):
     """ Hytera RTP packet payload type codes """
     HYTERA_PCMU = 0                         # ITU-T G.711 mu-Law
     HYTERA_PCMA = 8                         # ITU-T G.711 a-Law
@@ -93,7 +93,7 @@ class RTPPacket(object):
         flags = (self.rtpVersion << 30) | (self.payloadType << 16) | (self.seq & 0xFFFF)
 
         if self.extension is not None:
-            flags |= 0x100000
+            flags |= 0x10000000
 
         if self.marker:
             flags |= 0x800000
@@ -103,7 +103,7 @@ class RTPPacket(object):
                 raise ValueError("CSRC length is limited to 15 entries")
             flags |= (len(self.csrc) << 24)
 
-        buf = struct.pack('!LLL', flags, self.timestamp, self.ssrc)
+        buf = struct.pack('!LLL', flags, self.timestamp & 0xFFFFFFFF, self.ssrc)
 
         # Append the CSRCs
         fmt = '!' + 'L'*len(self.csrc)
@@ -115,7 +115,9 @@ class RTPPacket(object):
                 raise ValueError("Extension must be a dict: {'type': number, 'data':bytes}")
 
             fmt = '!L' + 'L'*len(self.extension['data'])
-            buf += struct.pack(fmt, self.extension['type'], *self.extension['data'])
+            buf += struct.pack(fmt,
+                               (self.extension['type'] << 16) | len(self.extension['data']),
+                               *self.extension['data'])
 
         # Payload!
         buf += bytes(self.payload)
@@ -126,7 +128,7 @@ class RTPPacket(object):
     def __repr__(self):
         # Try to decode the payload type; set string to "???" if this fails
         try:
-            rty = str(RTPPayloadTypes(self.payloadType))
+            rty = str(RTPPayloadType(self.payloadType))
         except:
             rty = "???"
 
