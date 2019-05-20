@@ -47,25 +47,25 @@ class RTPPacket(object):
         self.rtpVersion     = (flags >> 30) & 0x03
         padding             = (flags & 0x200000) != 0
         extension           = (flags & 0x100000) != 0
-        csrcCount           = (flags >> 24) & 0x0F
+        csrc_count          = (flags >> 24) & 0x0F
         self.marker         = (flags & 0x800000) != 0
         self.payloadType    = (flags >> 16) & 0x7F
         self.seq            = (flags & 0xFFFF)
 
         # Calculate payload start offset
-        payloadStart = 12
+        payload_start = 12
 
         # Decode CSRC data
-        if csrcCount > 0:
-            fmt = '!' + 'L'*csrcCount
-            self.csrc = struct.unpack_from(fmt, data, payloadStart)
-            payloadStart += (csrcCount * 4)
+        if csrc_count > 0:
+            fmt = '!' + 'L'*csrc_count
+            self.csrc = struct.unpack_from(fmt, data, payload_start)
+            payload_start += (csrc_count * 4)
 
         # Decode extension field, if any
         if extension:
             # Read the extension field and its length
-            e = struct.unpack_from('!L', data, payloadStart)[0]
-            payloadStart += 4
+            e = struct.unpack_from('!L', data, payload_start)[0]
+            payload_start += 4
 
             # decode the initial extension word (format code and length)
             efmt = (e >> 16) & 0xFFFF
@@ -73,8 +73,8 @@ class RTPPacket(object):
 
             # decode the extension data
             fmt = '!' + 'L'*elen
-            edata = struct.unpack_from(fmt, data, payloadStart)
-            payloadStart += (elen*4)
+            edata = struct.unpack_from(fmt, data, payload_start)
+            payload_start += (elen*4)
 
             self.extension = {'type': efmt, 'data': edata}
 
@@ -82,9 +82,9 @@ class RTPPacket(object):
         if padding:
             # Last byte of the packet is the number of padding octets, including itself
             npadding = data[-1]
-            self.payload = data[payloadStart:-npadding]
+            self.payload = data[payload_start:-npadding]
         else:
-            self.payload = data[payloadStart:]
+            self.payload = data[payload_start:]
 
     def __bytes__(self):
         """ Convert the RTP packet to a byte representation """

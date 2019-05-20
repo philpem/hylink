@@ -48,10 +48,10 @@ HEARTBEAT_INTERVAL = 2
 class Watchdog(object):
     """ Watchdog timer """
 
-    def __init__(self, timeout, userHandler=None):  # timeout in seconds
+    def __init__(self, timeout, user_handler=None):  # timeout in seconds
         """ Create a Watchdog Timer """
         self.timeout = timeout
-        self.handler = userHandler if userHandler is not None else self.defaultHandler
+        self.handler = user_handler if user_handler is not None else self.default_handler
         self.timer = threading.Timer(self.timeout, self.handler)
 
     def reset(self):
@@ -64,7 +64,7 @@ class Watchdog(object):
         """ Stop the watchdog """
         self.timer.cancel()
 
-    def defaultHandler(self):
+    def default_handler(self):
         """ Default watchdog handler """
         raise self
 
@@ -98,16 +98,16 @@ class ADKSocket(object):
         self._sock.bind((host, port))
 
         # Set up the Heartbeat timer
-        self._wdt = Watchdog(HEARTBEAT_TIMEOUT, self._heartbeatExpired)
+        self._wdt = Watchdog(HEARTBEAT_TIMEOUT, self._heartbeat_expired)
 
         # Create and start the receive and transmit threads
         self._running = False
-        self._rxthread = threading.Thread(target=self._rxThreadProc, name="%s-rx.%d" % (name, port))
-        self._txthread = threading.Thread(target=self._txThreadProc, name="%s-tx.%d" % (name, port))
+        self._rxthread = threading.Thread(target=self._rx_thread_proc, name="%s-rx.%d" % (name, port))
+        self._txthread = threading.Thread(target=self._tx_thread_proc, name="%s-tx.%d" % (name, port))
         self._rxthread.start()
         self._txthread.start()
 
-    def isConnected(self):
+    def is_connected(self):
         """ Returns true if the repeater is connected, otherwise false """
         return self._repeaterAddr is not None
 
@@ -123,28 +123,28 @@ class ADKSocket(object):
             return None
 
         # Will this packet result in an acknowledgement?
-        ackReq = False
+        ack_req = False
         if isinstance(packet, HSTRPToRadio):
-            ackReq = True
+            ack_req = True
 
         # Hytera form packet -- update the sequence ID
-        packet.hytSeqID = self._getSeq()
+        packet.hytSeqID = self._getseq()
         # If ack callback is needed, store it in the sequence list
-        if ackReq and (callback is not None):
+        if ack_req and (callback is not None):
             self._ackcallbacks[packet.hytSeqID] = callback
         # Send the packet
         self._txqueue.put(packet)
 
         # If this is a blocking operation -- wait for the ack
-        if ackReq and (callback is None):
+        if ack_req and (callback is None):
             # Wait for the Ack
-            ackn = self.waitAck(self.ackTimeout)
+            ackn = self.wait_ack(self.ackTimeout)
             log.debug("  Blocking send acknowledged, sent seq=%d, ack=%d" % (packet.hytSeqID, ackn))
             # TODO validate the sequence number of the acknowledgement
 
         return packet.hytSeqID
 
-    def _heartbeatExpired(self):
+    def _heartbeat_expired(self):
         """
         Called by the Watchdog task when we haven't received a packet in a while.
         """
@@ -167,13 +167,13 @@ class ADKSocket(object):
     # Shutdown method is from:
     # https://stackoverflow.com/questions/7449247/how-do-i-abort-a-socket-recvfrom-from-another-thread-in-python
 
-    def _getSeq(self):
+    def _getseq(self):
         """ Get the sequence ID then increment it """
         x = self._seq
         self._seq = (self._seq + 1) & 0xFFFF
         return x
 
-    def _txThreadProc(self):
+    def _tx_thread_proc(self):
         """ Transmit thread function """
         log.debug("TxThread running")
 
@@ -206,7 +206,7 @@ class ADKSocket(object):
 
         log.info("TxThread shutting down...")
 
-    def _rxThreadProc(self):
+    def _rx_thread_proc(self):
         """ Receive thread function """
         self._running = True
 
@@ -225,7 +225,7 @@ class ADKSocket(object):
                 log.warning("Null Packet received -- %s from %s" % (data, addr))
                 continue
 
-            # noinspection PyBroadException
+            # noinspection PyBroadException,PyPep8
             try:
                 p = HYTPacket.decode(data)
             except HYTBadSignature:
@@ -264,7 +264,7 @@ class ADKSocket(object):
 
                 # Acknowledge the SYN with a SYN-ACK
                 p = HSTRPSynAck()
-                p.hytSeqID = self._getSeq()
+                p.hytSeqID = self._getseq()
                 self._txqueue.put(p)
 
                 # At this point, the repeater will begin sending Heartbeat messages
@@ -325,7 +325,7 @@ class ADKSocket(object):
 
         log.info("RxThread shutting down...")
 
-    def waitAck(self, timeout=None):
+    def wait_ack(self, timeout=None):
         """
         Wait for the next acknowledgement in the queue and return it
 
@@ -340,7 +340,7 @@ class ADKSocket(object):
         else:
             raise ValueError("Invalid timeout value, must be None or >= 0")
 
-    def setMsgCallback(self, callback):
+    def set_msg_callback(self, callback):
         """
         Set the broadcast callback.
 
@@ -355,7 +355,7 @@ class ADKSocket(object):
         """
         self._rcpRxCallback = callback
 
-    def setRTPCallback(self, callback):
+    def set_rtp_callback(self, callback):
         """
         Set the RTP callback.
 

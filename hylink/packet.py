@@ -42,14 +42,14 @@ class HYTPacket(object):
 
         # Unpack the packet data
         signature = data[0:3]
-        pktType, seqid = struct.unpack_from('>BH', data, 3)
+        pkttype, seqid = struct.unpack_from('>BH', data, 3)
 
         # Check the initial signature is correct
         if signature != self.__HYTSIG:
             raise HYTBadSignature("Bad header signature")
 
         # De-encapsulate the fields
-        self.hytPktType = pktType
+        self.hytPktType = pkttype
         self.hytSeqID   = seqid
         self.hytPayload = data[6:]
 
@@ -317,12 +317,12 @@ class RepeaterHeader(object):
     def __repr__(self):
         """ Convert this packet into a string representation """
         if self.hasRTP:
-            hasRTP = ", has RTP"
+            s = ", has RTP"
         else:
-            hasRTP = ""
+            s = ""
 
         return "<%s: repeater ID %s, timeslot %s%s>" % \
-               (type(self).__name__, self.synRepeaterRadioID, self.synTimeslot, hasRTP)
+               (type(self).__name__, self.synRepeaterRadioID, self.synTimeslot, s)
 
 
 ###################################################
@@ -706,7 +706,7 @@ class RRSOffline(TxCtrlBase):
 
         # valid packet
         self.radioIP = struct.unpack_from('>I', self.txcPayload)[0]
-        self.radioID = dmrIPtoID(self.radioIP)
+        self.radioID = dmr_ip_to_id(self.radioIP)
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
@@ -714,7 +714,7 @@ class RRSOffline(TxCtrlBase):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: radioIP=%s, radioID=%s>" % (type(self).__name__, dmrIPtoStr(self.radioIP), self.radioID)
+        return "<%s: radioIP=%s, radioID=%s>" % (type(self).__name__, dmr_ip_to_str(self.radioIP), self.radioID)
 
 
 class RRSRegister(TxCtrlBase):
@@ -736,7 +736,7 @@ class RRSRegister(TxCtrlBase):
 
         # valid packet
         self.radioIP = struct.unpack_from('>I', self.txcPayload)[0]
-        self.radioID = dmrIPtoID(self.radioIP)
+        self.radioID = dmr_ip_to_id(self.radioIP)
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
@@ -744,7 +744,7 @@ class RRSRegister(TxCtrlBase):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: radioIP=%s, radioID=%s>" % (type(self).__name__, dmrIPtoStr(self.radioIP), self.radioID)
+        return "<%s: radioIP=%s, radioID=%s>" % (type(self).__name__, dmr_ip_to_str(self.radioIP), self.radioID)
 
 
 # TODO list for RRS:
@@ -782,8 +782,8 @@ class TMPPrivateMessageNeedAck(TxCtrlBase):
 
         # valid packet
         self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
-        self.destID  = dmrIPtoID(self.destIP)
-        self.srcID   = dmrIPtoID(self.srcIP)
+        self.destID  = dmr_ip_to_id(self.destIP)
+        self.srcID   = dmr_ip_to_id(self.srcIP)
         self.message = self.txcPayload[12:].decode('utf-16le')
 
     def __bytes__(self):
@@ -815,8 +815,8 @@ class TMPPrivateMessageAnswer(TxCtrlBase):
 
         # valid packet
         self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
-        self.destID  = dmrIPtoID(self.destIP)
-        self.srcID   = dmrIPtoID(self.srcIP)
+        self.destID  = dmr_ip_to_id(self.destIP)
+        self.srcID   = dmr_ip_to_id(self.srcIP)
  
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
@@ -846,8 +846,8 @@ class TMPGroupMessage(TxCtrlBase):
 
         # valid packet
         self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
-        self.destID  = dmrIPtoID(self.destIP)
-        self.srcID   = dmrIPtoID(self.srcIP)
+        self.destID  = dmr_ip_to_id(self.destIP)
+        self.srcID   = dmr_ip_to_id(self.srcIP)
         self.message = self.txcPayload[12:].decode('utf-16le')
 
     def __bytes__(self):
@@ -879,8 +879,8 @@ class TMPGroupMessageAnswer(TxCtrlBase):
 
         # valid packet
         self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
-        self.destID  = dmrIPtoID(self.destIP)
-        self.srcID   = dmrIPtoID(self.srcIP)
+        self.destID  = dmr_ip_to_id(self.destIP)
+        self.srcID   = dmr_ip_to_id(self.srcIP)
  
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
@@ -910,8 +910,8 @@ class TMPPrivateMessageNoAck(TxCtrlBase):
 
         # valid packet
         self.msgSeq, self.destIP, self.srcIP = struct.unpack_from('>III', self.txcPayload)
-        self.destID  = dmrIPtoID(self.destIP)
-        self.srcID   = dmrIPtoID(self.srcIP)
+        self.destID  = dmr_ip_to_id(self.destIP)
+        self.srcID   = dmr_ip_to_id(self.srcIP)
         self.message = self.txcPayload[12:].decode('utf-16le')
 
     def __bytes__(self):

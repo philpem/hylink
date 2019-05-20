@@ -48,7 +48,7 @@ rcpPort = ADKSocket(ADKDefaultPorts.RCP1)
 # run for a while
 # TODO -- packet -- make this event driven (wait on an event queue)
 logging.info("Waiting for repeater connection")
-while (not rtpPort.isConnected()) or (not rcpPort.isConnected()):
+while (not rtpPort.is_connected()) or (not rcpPort.is_connected()):
     time.sleep(2)
 logging.info("Repeater connected!")
 
@@ -72,7 +72,7 @@ time.sleep(2)
 logging.info("Sending some silence")
 
 
-def sampToSignedBin(data, width=2):
+def samp_to_signed_bin(data, width=2):
     return b''.join(b.to_bytes(width, sys.byteorder, signed=True) for b in data)
 
 
@@ -94,7 +94,7 @@ def silence(nsecs=1.0):
     global _rtpseq, _rtptstamp
 
     pkt = RTPPacket()
-    pkt.payload = audioop.lin2ulaw(sampToSignedBin([0] * RTP_FRAMESZ), 2)
+    pkt.payload = audioop.lin2ulaw(samp_to_signed_bin([0] * RTP_FRAMESZ), 2)
     pkt.payloadType = RTPPayloadType.HYTERA_PCMU
     # NOTE: Extension must be correct or the repeater won't repeat the audio
     pkt.extension = {'type': 0x15, 'data': [0, 0, 0]}
@@ -160,7 +160,7 @@ def wavfile(filename):
             chunk += padding
 
         # convert to ITU G.711 mu-law
-        pkt.payload = audioop.lin2ulaw(sampToSignedBin(chunk), 2)
+        pkt.payload = audioop.lin2ulaw(samp_to_signed_bin(chunk), 2)
 
         # send packet
         rtpPort.send(pkt)
