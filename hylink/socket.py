@@ -5,12 +5,10 @@ ADK Repeater Interface
 Socket protocol helper
 
 TODO: Implement retry timer for HSTRPToRadio (dispatch -> radio message)
-    The radio should ack these. Keep retrying every {T} seconds until it does, or until {R} retries (e.g. 2 seconds and 5 retries)
+    The radio should ack these. Keep retrying every {T} seconds until it does, or until {R} retries
+    (e.g. 2 seconds and 5 retries)
 
-TODO: Send Keepalives every 2 seconds instead of waiting on the repeater to signal us.
-    Reset connection (SYNACK?) if none received in several intervals?
-
-TODO: Review the log messages, log switches and other such fluff
+TODO: Review the log messages, log switches and other debugging code. Aim to reduce the log spam a bit.
 
 TODO: Keep track of more than one repeater -- track them via Radio ID or IP address.
     Will need to refactor the socket interface to manage the state of more than one repeater.
@@ -40,7 +38,11 @@ LOG_HEARTBEATS = False
 LOG_NONSYN = False
 
 
-HEARTBEAT_TIMEOUT = 30  # seconds
+# Terminate the connection if there are no packets received in this amount of time (seconds)
+HEARTBEAT_TIMEOUT = 30
+
+# Interval (in seconds) between heartbeats
+HEARTBEAT_INTERVAL = 2
 
 
 class Watchdog(object):
@@ -162,11 +164,8 @@ class ADKSocket(object):
         os.write(self._w_pipe, "I".encode())    # data isn't important
         self._rxthread.join()
 
-    # FIXME Shutdown method is a bit of a faff. Twisted might work better, see:
-    #    https://stackoverflow.com/questions/2912245/python-how-to-close-a-udp-socket-while-is-waiting-for-data-in-recv
-    #    https://twistedmatrix.com/documents/current/core/howto/udp.html
-    #
-    # For now we use a pipe, see https://stackoverflow.com/questions/7449247/how-do-i-abort-a-socket-recvfrom-from-another-thread-in-python
+    # Shutdown method is from:
+    # https://stackoverflow.com/questions/7449247/how-do-i-abort-a-socket-recvfrom-from-another-thread-in-python
 
     def _getSeq(self):
         """ Get the sequence ID then increment it """
@@ -175,12 +174,22 @@ class ADKSocket(object):
         return x
 
     def _txThreadProc(self):
+        """ Transmit thread function """
         log.debug("TxThread running")
 
         while True:
-            p = self._txqueue.get()
+            try:
+                p = self._txqueue.get(timeout=HEARTBEAT_INTERVAL)
+            except queue.Empty:
+                # Queue was empty for HEARTBEAT_INTERVAL, transmit a Heartbeat instead (but only if connected)
+                # This means a packet will be sent at least once every HEARTBEAT_INTERVAL to keep the connection alive.
+                if self._repeaterAddr is not None:
+                    p = HSTRPHeartbeat()
+                else:
+                    # Repeater not connected, don't send a heartbeat!
+                    continue
 
-            # Quit if there was a null/None in the queue
+            # If there was a null/None in the queue, exit the loop and shut down the thread
             if p is None:
                 break
 
@@ -198,14 +207,14 @@ class ADKSocket(object):
         log.info("TxThread shutting down...")
 
     def _rxThreadProc(self):
+        """ Receive thread function """
         self._running = True
 
         log.debug("RxThread running")
 
         while self._running:
-            # trigger on either a byte in the pipe or a received packet
-            # if no packet is received, go around again. If we're exiting,
-            # then self._running won't be set.
+            # Trigger on either a byte in the pipe or a received packet.
+            # The data in the pipe is ignored, but _running will be False so the 'continue' breaks us out of the loop.
             read, _w, errors = select.select([self._r_pipe, self._sock], [], [self._sock])
             if self._sock not in read:
                 continue
@@ -276,12 +285,8 @@ class ADKSocket(object):
                 # we ignore it until it times out and reverts to sending SYNs.
 
                 if self._repeaterAddr is not None:
-                    # Respond to a heartbeat with a heartbeat
                     if LOG_HEARTBEATS:
-                        log.debug("   Heartbeat received, responding with a heartbeat...")
-                    p = HSTRPHeartbeat()
-                    p.hytSeqID = 0      # Heartbeats always have a zero sequence ID
-                    self._txqueue.put(p)
+                        log.debug("   Heartbeat/keepalive received.")
 
             # Is this an acknowledgement?
             elif isinstance(p, HSTRPAck):
