@@ -140,7 +140,7 @@ class ADKSocket(object):
             # Wait for the Ack
             ackn = self.waitAck(self.ackTimeout)
             log.debug("  Blocking send acknowledged, sent seq=%d, ack=%d" % (packet.hytSeqID, ackn))
-            # TODO validate the sequence number
+            # TODO validate the sequence number of the acknowledgement
 
         return packet.hytSeqID
 
@@ -276,9 +276,6 @@ class ADKSocket(object):
             elif isinstance(p, HSTRPHeartbeat):
                 # Sequence ID always seems to be zero
 
-                # TODO flag the connection as "alive" and reset the connection-death timer?
-                #       (death timer expiry: disconnect repeater and mark as disconnected)
-
                 # If we have an app crash and restart, the repeater will keep sending
                 # us Heartbeats, expecting us to reciprocate.
                 # As we don't know the repeater's identity (which is in the SYN)
@@ -302,12 +299,15 @@ class ADKSocket(object):
             # Is this a message from the radio?
             elif isinstance(p, HSTRPFromRadio):
                 # Don't ack the message if the repeater is not connected
-                # FIXME - should we just log this and abort?
                 if self._repeaterAddr is not None:
                     # Acknowledge the message
                     ack = HSTRPAck()
                     ack.hytSeqID = p.hytSeqID
                     self._txqueue.put(ack)
+                else:
+                    # Repeater not connected, discard the message
+                    log.debug("RX: Discarded packet (repeater not connected): %s" % p)
+                    continue
 
                 # Pass the message onto the callback if there is one
                 if self._rcpRxCallback is not None:
