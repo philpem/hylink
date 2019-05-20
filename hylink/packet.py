@@ -149,6 +149,8 @@ class HSTRPHeartbeat(HYTPacket):
         # No-args constructor
         if data is None:
             self.hytPktType = self.TYPE
+            # Heartbeats always have a zero sequence ID
+            self.hytSeqID = 0
             return
 
         # A heartbeat has no payload.
