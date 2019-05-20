@@ -48,7 +48,7 @@ class HYTPacket(object):
         if signature != self.__HYTSIG:
             raise HYTBadSignature("Bad header signature")
 
-        # De-encapsulate the fields -- TODO refactor and do this with struct.decode
+        # De-encapsulate the fields
         self.hytPktType = pktType
         self.hytSeqID   = seqid
         self.hytPayload = data[6:]
@@ -620,7 +620,7 @@ class RCPBroadcastTransmitStatus(TxCtrlBase):
             struct.unpack_from("<HHHI", self.txcPayload)
 
         self.process = ProcessType(self.process)
-        # TODO source: RCPResultCode?
+        self.source = ResultCode(self.source)
         self.callType = CallType(self.callType)
 
     def __bytes__(self):
