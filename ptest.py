@@ -69,7 +69,7 @@ for ts, buf in pcap:
 
         print('%15s:%5s(%-6s) %s' % (inet_to_str(ip.src), udp.dport, ADKDefaultPorts(udp.dport).name, h))
     except HYTBadSignature:
-        #print('%15s:%5s %s   !!!BAD_SIG  d=%s' %
-        #      (inet_to_str(ip.src), udp.dport, '???', ' '.join(['%02X'%x for x in udp.data])))
+        # print('%15s:%5s %s   !!!BAD_SIG  d=%s' %
+        #       (inet_to_str(ip.src), udp.dport, '???', ' '.join(['%02X'%x for x in udp.data])))
         pass
 

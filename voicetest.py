@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import audioop
+import sys
 import time
 import librosa
 
@@ -68,17 +70,18 @@ seqn = rcpPort.send(htcButton)
 time.sleep(2)
 
 logging.info("Sending some silence")
-import sys
-import audioop
+
 
 def sampToSignedBin(data, width=2):
     return b''.join(b.to_bytes(width, sys.byteorder, signed=True) for b in data)
+
 
 SAMPLE_RATE = 8000        # sample rate Hz
 RTP_FRAMESZ = 160        # number of samples per packet, is 20ms at 8kHz
 
 _rtpseq = int(time.time() * SAMPLE_RATE)
 _rtptstamp = _rtpseq
+
 
 def silence(nsecs=1.0):
     """
@@ -105,6 +108,7 @@ def silence(nsecs=1.0):
         rtpPort.send(pkt)
         time.sleep(RTP_FRAMESZ / SAMPLE_RATE)
 
+
 def wavfile(filename):
     """
     Play a wave file over RTP
@@ -121,7 +125,8 @@ def wavfile(filename):
     # create an RTP packet
     pkt = RTPPacket()
     pkt.payloadType = RTPPayloadType.HYTERA_PCMU    # ITU-T G.711 mu-law
-    pkt.extension = { 'type': 0x15, 'data': [0, 0, 0] }     # NOTE: Extension must be correct or the repeater won't repeat the audio
+    # NOTE: Extension must be correct or the repeater won't repeat the audio
+    pkt.extension = {'type': 0x15, 'data': [0, 0, 0]}
 
     next_time = time.time()
     pace = RTP_FRAMESZ / SAMPLE_RATE
@@ -164,12 +169,13 @@ def wavfile(filename):
         next_time += pace
         time.sleep(max(0., next_time - time.time()))
 
+
 # slight delay so we don't lose the start of the audio
 # e.g. due to the target radio keying up
 silence(0.2)
 
-for i in CFG_DEMO_WAVS:
-    wavfile(i)
+for wav in CFG_DEMO_WAVS:
+    wavfile(wav)
     silence(1.0)
 
 # slight delay to avoid losing the end of the audio
