@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from HyteraADK.ports import ADKDefaultPorts
-from HyteraADK.socket import ADKSocket
-from HyteraADK.packet import *
-from HyteraADK.types import *
+from hylink.ports import ADKDefaultPorts
+from hylink.socket import ADKSocket
+from hylink.packet import *
+from hylink.types import *
 
 
 if __name__ == '__main__':

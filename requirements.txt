@@ -1,0 +1,5 @@
+# librosa required for voicetest.py
+# TODO, change this to Resampy
+librosa
+# dpkt required for ptest.py
+dpkt

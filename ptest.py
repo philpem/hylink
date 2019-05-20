@@ -3,9 +3,9 @@
 import dpkt
 import sys
 import socket
-from HyteraADK.packet import *
-from HyteraADK.exceptions import *
-from HyteraADK.ports import ADKDefaultPorts
+from hylink.packet import *
+from hylink.exceptions import *
+from hylink.ports import ADKDefaultPorts
 
 
 # Suppress heartbeat packets

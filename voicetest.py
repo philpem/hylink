@@ -3,11 +3,11 @@
 import time
 import librosa
 
-from HyteraADK.ports import ADKDefaultPorts
-from HyteraADK.socket import ADKSocket
-from HyteraADK.packet import *
-from HyteraADK.types import *
-from HyteraADK.rtp import RTPPacket, RTPPayloadType
+from hylink.ports import ADKDefaultPorts
+from hylink.socket import ADKSocket
+from hylink.packet import *
+from hylink.types import *
+from hylink.rtp import RTPPacket, RTPPayloadType
 
 # Private Call the target radio
 CFG_PRIV_CALL = True
