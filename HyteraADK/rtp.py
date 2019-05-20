@@ -2,10 +2,15 @@
 
 RTP packet handler with Hytera specialisations
 
+Limitations:
+  Does not support packet padding on transmit (cannot pad packets to a fixed size).
+    (In practice Hytera RTP doesn't need this)
+
 """
 
 from enum import IntEnum
 import struct
+from . import exceptions
 
 
 class RTPPayloadType(IntEnum):
@@ -119,17 +124,15 @@ class RTPPacket(object):
                                (self.extension['type'] << 16) | len(self.extension['data']),
                                *self.extension['data'])
 
-        # Payload!
+        # Add the payload and return the finished buffer
         buf += bytes(self.payload)
-
-        # We don't do padding -- perhaps that should be a TODO.
         return buf
 
     def __repr__(self):
         # Try to decode the payload type; set string to "???" if this fails
         try:
             rty = str(RTPPayloadType(self.payloadType))
-        except:
+        except exceptions.ADKException:
             rty = "???"
 
         return "<RTP: version %d, pty %d (%s), seqid=%d, tm=%d, %d-byte payload>" % \
