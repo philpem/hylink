@@ -59,7 +59,8 @@ class HYTPacket(object):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
+        return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % \
+               (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
     @staticmethod
     def decode(data):
@@ -107,9 +108,11 @@ class HSTRPToRadio(HYTPacket):
     def __repr__(self):
         """ Convert this packet into a string representation """
         if self.txCtrl is not None:
-            return "<%s: type 0x%02X, seqid %d, payload: %s >" % (type(self).__name__, self.hytPktType, self.hytSeqID, self.txCtrl)
+            return "<%s: type 0x%02X, seqid %d, payload: %s >" % \
+                   (type(self).__name__, self.hytPktType, self.hytSeqID, self.txCtrl)
         else:
-            return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
+            return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % \
+                   (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
 
 class HSTRPAck(HYTPacket):
@@ -135,7 +138,8 @@ class HSTRPAck(HYTPacket):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
+        return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % \
+               (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
 
 class HSTRPHeartbeat(HYTPacket):
@@ -163,7 +167,8 @@ class HSTRPHeartbeat(HYTPacket):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
+        return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % \
+               (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
 
 class HSTRPSynAck(HYTPacket):
@@ -189,7 +194,8 @@ class HSTRPSynAck(HYTPacket):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
+        return "<%s: type 0x%02X, seqid %d, %d payload bytes>" % \
+               (type(self).__name__, self.hytPktType, self.hytSeqID, len(self.hytPayload))
 
 
 class HSTRPFromRadio(HYTPacket):
@@ -235,7 +241,7 @@ class HSTRPSyn(HYTPacket):
             self.hytPktType = self.TYPE
             # Cannot create no-args SYN packets, they're only supposed to be
             # sent by the repeater
-            raise NotImplementedError("It is not possible to create an announcement packet with the no-args constructor")
+            raise NotImplementedError("Repeater announcement packets cannot be instantiated")
 
         # The ADK log calls this NetworkDescriptor / "syn packet"
 
@@ -245,11 +251,12 @@ class HSTRPSyn(HYTPacket):
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
         # Throw an exception because user code shouldn't be trying to send SYN packets?
-        raise NotImplementedError("It is not possible to serialize a SYN packet for transmission")
+        raise NotImplementedError("SYN packets are receive-only")
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: type 0x%02X, seqid %d, rptHeader %s >" % (type(self).__name__, self.hytPktType, self.hytSeqID, self.rptHeader)
+        return "<%s: type 0x%02X, seqid %d, rptHeader %s >" % \
+               (type(self).__name__, self.hytPktType, self.hytSeqID, self.rptHeader)
 
 
 ###################################################
@@ -365,16 +372,20 @@ class TxCtrlBase(object):
 
     def __bytes__(self):
         """ Convert this packet into a byte sequence """
-        # For some unknown reason, RCP is little-endian while every other protocol is big-endian
+        # Build the packet header
         if self.txcReliable:
             reliable = 0x80
         else:
             reliable = 0
 
+        # For some unknown reason, RCP is little-endian while every other protocol is big-endian
         if self.txcMsgHdr == MessageHeader.RCP:
-            data = struct.pack("<BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload)) + self.txcPayload
+            data = struct.pack("<BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload))
         else:
-            data = struct.pack(">BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload)) + self.txcPayload
+            data = struct.pack(">BHH", self.txcMsgHdr | reliable, self.txcOpcode, len(self.txcPayload))
+
+        # Append the payload
+        data += self.txcPayload
 
         # Calculate the message checksum
         csum = (~(sum(data[1:5]) + sum(self.txcPayload)) + 0x33) & 0xFF
@@ -401,7 +412,7 @@ class TxCtrlBase(object):
         if CFG_RETURN_NONE_ON_UNKNOWN_TXCTRL_OPCODE:
             return None
         else:
-            raise HYTUnhandledType("Unhandled TxCtrl payload, msghdr %s opcode 0x%04X" % (txcp.txcMsgHdr, txcp.txcOpcode))
+            raise HYTUnhandledType("Unhandled TxCtrl, msghdr %s opcode 0x%04X" % (txcp.txcMsgHdr, txcp.txcOpcode))
 
 
 #############################################################################
@@ -666,7 +677,8 @@ class RCPRepeaterBroadcastTransmitStatus(TxCtrlBase):
     def __repr__(self):
         """ Convert this packet into a string representation """
         return "<%s: mode %s, status %s, svctype %s, calltype %s, target %d, sender %d>" % \
-               (type(self).__name__, self.mode, self.status, self.serviceType, self.callType, self.targetID, self.senderID)
+               (type(self).__name__, self.mode, self.status, self.serviceType, self.callType, self.targetID,
+                self.senderID)
 
 
 #############################################################################
@@ -780,7 +792,8 @@ class TMPPrivateMessageNeedAck(TxCtrlBase):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
+        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % \
+               (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
 
 
 class TMPPrivateMessageAnswer(TxCtrlBase):
@@ -843,7 +856,8 @@ class TMPGroupMessage(TxCtrlBase):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
+        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % \
+               (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
 
 
 class TMPGroupMessageAnswer(TxCtrlBase):
@@ -906,6 +920,6 @@ class TMPPrivateMessageNoAck(TxCtrlBase):
 
     def __repr__(self):
         """ Convert this packet into a string representation """
-        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
-
+        return "<%s: msgseq=%d, from %d to %d, text '%s'>" % \
+               (type(self).__name__, self.msgSeq, self.srcID, self.destID, self.message)
 

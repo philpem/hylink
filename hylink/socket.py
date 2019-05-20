@@ -225,6 +225,7 @@ class ADKSocket(object):
                 log.warning("Null Packet received -- %s from %s" % (data, addr))
                 continue
 
+            # noinspection PyBroadException
             try:
                 p = HYTPacket.decode(data)
             except HYTBadSignature:
