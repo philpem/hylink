@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 
-class CallType(IntEnum):           # ADKCoreEngine_CLR/CallType.cs
+class CallType(IntEnum):
     PRIVATE             = 0             # Private call
     GROUP               = 1             # Group call
     ALL                 = 2             # All call
@@ -31,7 +31,7 @@ class TxCallMode(IntEnum):
     SELECTIVE = 1               # Selective, multi-connection mode
 
 
-class TxCallStatus(IntEnum):       # Only used by B845 (Broadcast status report), which ADK doesn't seem to use
+class TxCallStatus(IntEnum):
     LOCAL_REPEATING = 0         # Repeating incoming traffic
     LOCAL_HANG_TIME = 1         # Repeating, in hang time
     IP_REPEATING = 2
@@ -61,7 +61,6 @@ class TxServiceType(IntEnum):
 
 
 class ButtonTarget(IntEnum):
-    # See Buttons.cs for more
     FRONT_PTT       = 0x03  # Front PTT switch (Internal PTT)
     BACK_PTT        = 0x1E  # Back PTT switch (External PTT)
     CHANNEL_UP      = 0x22  # Channel Up
@@ -76,12 +75,12 @@ class ButtonOperation(IntEnum):
 
 
 class MessageHeader(IntEnum):
-    RCP         = 0x02
-    LP          = 0x08
-    TMP         = 0x09
-    RRS         = 0x11
-    TP          = 0x12
-    DTP         = 0x13
+    RCP         = 0x02      # Radio Control Protocol
+    LP          = 0x08      # Location Protocol
+    TMP         = 0x09      # Text Message Protocol
+    RRS         = 0x11      # Radio Registration Service
+    TP          = 0x12      # Telemetry Protocol
+    DTP         = 0x13      # Data Transfer Protocol
     DDS         = 0x14      # Data Delivery States
 
 
@@ -109,22 +108,63 @@ class ResultCode(IntEnum):
 
 class StatusParameter(IntEnum):
     STATUS_OF_ALL_CHANNELS      = 0     # Status and parameter of all channels
-    SQUELCH_LEVEL               = 1     # Squelch level for analog channel (0=open, 1=normal, 2=tight)
-    CTCSS_CDCSS_MATCH_STATUS    = 2     # CDCSS/CTCSS match status (analog) (0=no match, 1=match)
-    POWER_LEVEL                 = 3     # Power level (0=high, 2=low)
+    SQUELCH_LEVEL               = 1     # Squelch level for analog channel -- see StatusValueSquelchLevel
+    CTCSS_CDCSS_MATCH_STATUS    = 2     # CDCSS/CTCSS match status (analog) -- see StatusValueCTCSSMatchStatus
+    POWER_LEVEL                 = 3     # Power level -- see StatusValuePowerLevel
     TX_FREQUENCY                = 4     # Transmit frequency
     RX_FREQUENCY                = 5     # Receive frequency
-    TX_ALLOW                    = 6     # TX Allow (0=always, 1=channel free, 2=colour free, 3=CTCSS/CDCSS correct, 4=CTCSS/CDCSS incorrect, 5=RX only)
-    CHANNEL_MODE                = 7     # Channel mode (0=conventional digital, 1=conventional analog, 2=repeater digital, 3=repeater analog, 4=trunking digital, 5=trunking analog, 6=repeater mix_channel, 0xFFFFFFFF=invalid)
+    TX_ALLOW                    = 6     # TX Allow -- for valid values, see StatusValueTXAllow
+    CHANNEL_MODE                = 7     # Channel mode -- see StatusValueChannelMode
     TALKAROUND_STATUS           = 8     # Talkaround status on/off [off_on type]
     RSSI                        = 9     # RSSI
     CARRIER_STATUS              = 10    # Carrier status (0=not present, 1=present)
 
 
+class StatusValueSquelchLevel(IntEnum):
+    """ Valid values when StatusParameter == SQUELCH_LEVEL """
+    OPEN                    = 0
+    NORMAL                  = 1
+    TIGHT                   = 2
+
+
+class StatusValueCTCSSMatchStatus(IntEnum):
+    """ Valid values when StatusParameter == CTCSS_CDCSS_MATCH_STATUS """
+    NO_MATCH                = 0
+    MATCH                   = 1
+
+
+class StatusValuePowerLevel(IntEnum):
+    """ Valid values when StatusParameter == POWER_LEVEL """
+    HIGH_POWER              = 0
+    LOW_POWER               = 2
+
+
+class StatusValueTXAllow(IntEnum):
+    """ Valid values when StatusParameter == TX_ALLOW """
+    ALWAYS                  = 0
+    CHANNEL_FREE            = 1
+    COLOUR_FREE             = 2
+    CTCSS_CDCSS_CORRECT     = 3
+    CTCSS_CDCSS_INCORRECT   = 4
+    RECEIVE_ONLY            = 5
+
+
+class StatusValueChannelMode:
+    """ Valid values when StatusParameter == CHANNEL_MODE """
+    CONVENTIONAL_DIGITAL    = 0
+    CONVENTIONAL_ANALOG     = 1
+    REPEATER_DIGITAL        = 2
+    REPEATER_ANALOG         = 3
+    TRUNKING_DIGITAL        = 4
+    TRUNKING_ANALOG         = 5
+    REPEATER_MIX            = 6
+    INVALID                 = 0xFFFFFFFF
+
+
 class StatusValueType(IntEnum):
-    LEVEL                       = 0
-    DB_VALUE                    = 1
-    ABANDON                     = 2
+    LEVEL                   = 0
+    DB_VALUE                = 1
+    ABANDON                 = 2
 
 
 class TMSResultCode(IntEnum):
