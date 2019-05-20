@@ -4,15 +4,19 @@ ADK Repeater Interface
 
 Socket protocol helper
 
-TODO:
-    Implement retry timer for HSTRPToRadio (dispatch -> radio message)
-        The radio should ack these. Keep retrying every {T} seconds until it does, or until {R} retries (e.g. 2 seconds and 5 retries)
+TODO: Implement retry timer for HSTRPToRadio (dispatch -> radio message)
+    The radio should ack these. Keep retrying every {T} seconds until it does, or until {R} retries (e.g. 2 seconds and 5 retries)
 
-    Review the log messages, log switches and other such fluff
+TODO: Send Keepalives every 2 seconds instead of waiting on the repeater to signal us.
+    Reset connection (SYNACK?) if none received in several intervals?
 
-    Keep track of more than one repeater -- track them via Radio ID
+TODO: Review the log messages, log switches and other such fluff
 
-    Higher-level repeater interface to sit on top of this
+TODO: Keep track of more than one repeater -- track them via Radio ID or IP address.
+    Will need to refactor the socket interface to manage the state of more than one repeater.
+    Possibly add a RepeaterConnection class on top of
+
+TODO: Higher-level repeater interface to sit on top of this (and make programming easier and more Pythonic)
 
 """
 
