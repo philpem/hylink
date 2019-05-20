@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import time
-import numpy as np
 import librosa
 
 from HyteraADK.ports import ADKDefaultPorts
@@ -10,179 +9,180 @@ from HyteraADK.packet import *
 from HyteraADK.types import *
 from HyteraADK.rtp import RTPPacket, RTPPayloadType
 
-
+# Private Call the target radio
 CFG_PRIV_CALL = True
 
+# List of WAV files to play
+CFG_DEMO_WAVS = ('wavfiles/hello.txt.wav',
+                 'wavfiles/brownfox.txt.wav',
+                 'wavfiles/ops.txt.wav',
+                 'wavfiles/glados.txt.wav',
+                 'wavfiles/announce.txt.wav'
+                 )
+
+
+# Set up call parameters
 if CFG_PRIV_CALL:
-    RADIOID  = 9000
+    RADIOID = 9000
     CALLTYPE = CallType.PRIVATE
 else:
-    RADIOID  = 10000
+    RADIOID = 10000
     CALLTYPE = CallType.GROUP
 
+# configure logging
+logging.basicConfig(format='%(asctime)s [%(levelname)-7s] (%(threadName)-20s) %(message)s', level=logging.DEBUG)
 
-if __name__ == '__main__':
+"""
+socks = {}
+for p in ADKDefaultPorts:
+    # start ADK socket server
+    socks[p] = ADKSocket(port = p)
+"""
 
-    # configure logging
-    logging.basicConfig(format='%(asctime)s [%(levelname)-7s] (%(threadName)-20s) %(message)s', level=logging.DEBUG)
+# Start RCP and RTP for Slot 1
+rtpPort = ADKSocket(ADKDefaultPorts.RTP1)
+rcpPort = ADKSocket(ADKDefaultPorts.RCP1)
 
-    """
-    socks = {}
-    for p in ADKDefaultPorts:
-        # start ADK socket server
-        socks[p] = ADKSocket(port = p)
-    """
-
-    # Start RCP and RTP for Slot 1
-    rtpPort = ADKSocket(ADKDefaultPorts.RTP1)
-    rcpPort = ADKSocket(ADKDefaultPorts.RCP1)
-
-    # run for a while
-    # TODO -- packet -- make this event driven (wait on an event queue)
-    logging.info("Waiting for repeater connection")
-    while (not rtpPort.isConnected()) or (not rcpPort.isConnected()):
-        time.sleep(2)
-    logging.info("Repeater connected!")
-
-    # send txctrl call request
-    logging.info("Sending Call request...")
-    htc = HSTRPToRadio()
-    htc.txCtrl = RCPCallRequest()
-    htc.txCtrl.callType = CALLTYPE
-    htc.txCtrl.destId = RADIOID
-    seqn = rcpPort.send(htc)
+# run for a while
+# TODO -- packet -- make this event driven (wait on an event queue)
+logging.info("Waiting for repeater connection")
+while (not rtpPort.isConnected()) or (not rcpPort.isConnected()):
     time.sleep(2)
+logging.info("Repeater connected!")
 
-    logging.info("Keying up...")
-    htcButton = HSTRPToRadio()
-    htcButton.txCtrl = RCPButtonRequest()
-    htcButton.txCtrl.pttTarget = ButtonTarget.FRONT_PTT
-    htcButton.txCtrl.pttOperation = ButtonOperation.PRESS
-    seqn = rcpPort.send(htcButton)
-    time.sleep(2)
+# send txctrl call request
+logging.info("Sending Call request...")
+htc = HSTRPToRadio()
+htc.txCtrl = RCPCallRequest()
+htc.txCtrl.callType = CALLTYPE
+htc.txCtrl.destId = RADIOID
+seqn = rcpPort.send(htc)
+time.sleep(2)
 
-    logging.info("Sending some silence")
-    import sys
-    import audioop
+logging.info("Keying up...")
+htcButton = HSTRPToRadio()
+htcButton.txCtrl = RCPButtonRequest()
+htcButton.txCtrl.pttTarget = ButtonTarget.FRONT_PTT
+htcButton.txCtrl.pttOperation = ButtonOperation.PRESS
+seqn = rcpPort.send(htcButton)
+time.sleep(2)
 
-    def sampToSignedBin(data, width=2):
-        return b''.join(b.to_bytes(width, sys.byteorder, signed=True) for b in data)
+logging.info("Sending some silence")
+import sys
+import audioop
 
-    SAMPLE_RATE = 8000        # sample rate Hz
-    RTP_FRAMESZ = 160        # number of samples per packet, is 20ms at 8kHz
+def sampToSignedBin(data, width=2):
+    return b''.join(b.to_bytes(width, sys.byteorder, signed=True) for b in data)
 
-    _rtpseq = int(time.time() * SAMPLE_RATE)
-    _rtptstamp = _rtpseq
+SAMPLE_RATE = 8000        # sample rate Hz
+RTP_FRAMESZ = 160        # number of samples per packet, is 20ms at 8kHz
 
-    def silence(nsecs=1):
-        """
-        send <nsecs> seconds of silence over RTP
+_rtpseq = int(time.time() * SAMPLE_RATE)
+_rtptstamp = _rtpseq
 
-        :param nsecs: number of seconds of silence
-        :return: nothing
-        """
+def silence(nsecs=1.0):
+    """
+    send <nsecs> seconds of silence over RTP
 
-        global _rtpseq, _rtptstamp
+    :param nsecs: number of seconds of silence
+    :return: nothing
+    """
 
-        pkt = RTPPacket()
-        pkt.payload = audioop.lin2ulaw(sampToSignedBin([0] * RTP_FRAMESZ), 2)
-        pkt.payloadType = 0   # PCM u-LAW
-        pkt.extension = { 'type': 0x15, 'data': [0, 0, 0] }     # NOTE: Extension must be correct or the repeater won't repeat the audio
+    global _rtpseq, _rtptstamp
 
-        # generate some RTP frames
-        for i in range(round((SAMPLE_RATE / RTP_FRAMESZ) * nsecs)):
-            _rtpseq += 1
-            _rtptstamp += RTP_FRAMESZ
-            pkt.seq = _rtpseq
-            pkt.timestamp = _rtptstamp
-            rtpPort.send(pkt)
-            time.sleep(RTP_FRAMESZ / SAMPLE_RATE)
+    pkt = RTPPacket()
+    pkt.payload = audioop.lin2ulaw(sampToSignedBin([0] * RTP_FRAMESZ), 2)
+    pkt.payloadType = RTPPayloadType.HYTERA_PCMU
+    # NOTE: Extension must be correct or the repeater won't repeat the audio
+    pkt.extension = {'type': 0x15, 'data': [0, 0, 0]}
 
-    def wavfile(filename):
-        """
-        Play a wave file over RTP
+    # generate some RTP frames
+    for i in range(round((SAMPLE_RATE / RTP_FRAMESZ) * nsecs)):
+        _rtpseq += 1
+        _rtptstamp += RTP_FRAMESZ
+        pkt.seq = _rtpseq
+        pkt.timestamp = _rtptstamp
+        rtpPort.send(pkt)
+        time.sleep(RTP_FRAMESZ / SAMPLE_RATE)
 
-        :param filename:
-        :return:
-        """
+def wavfile(filename):
+    """
+    Play a wave file over RTP
 
-        global _rtpseq, _rtptstamp
+    :param filename:
+    :return:
+    """
 
-        # load the wav file, using librosa to convert to mono at the repeater's RTP sample rate
-        data, sr = librosa.load(filename, sr=SAMPLE_RATE, mono=True)
+    global _rtpseq, _rtptstamp
 
-        # create an RTP packet
-        pkt = RTPPacket()
-        pkt.payloadType = RTPPayloadType.HYTERA_PCMU    # ITU-T G.711 mu-law
-        pkt.extension = { 'type': 0x15, 'data': [0, 0, 0] }     # NOTE: Extension must be correct or the repeater won't repeat the audio
+    # load the wav file, using librosa to convert to mono at the repeater's RTP sample rate
+    data, sr = librosa.load(filename, sr=SAMPLE_RATE, mono=True)
 
-        next_time = time.time()
-        pace = RTP_FRAMESZ / SAMPLE_RATE
-        log.debug("Starting WAV playback, pace=%.2f ms" % (pace * 1000.))
-        for i in range(0, len(data), RTP_FRAMESZ):
-            # process audio in chunks of the RTP frame size
-            chunk = data[i:i+160]
+    # create an RTP packet
+    pkt = RTPPacket()
+    pkt.payloadType = RTPPayloadType.HYTERA_PCMU    # ITU-T G.711 mu-law
+    pkt.extension = { 'type': 0x15, 'data': [0, 0, 0] }     # NOTE: Extension must be correct or the repeater won't repeat the audio
 
-            # update sequence number and timestamp
-            _rtpseq += 1
-            _rtptstamp += RTP_FRAMESZ
-            pkt.seq = _rtpseq
-            pkt.timestamp = _rtptstamp
+    next_time = time.time()
+    pace = RTP_FRAMESZ / SAMPLE_RATE
+    log.debug("Starting WAV playback, pace=%.2f ms" % (pace * 1000.))
+    for i in range(0, len(data), RTP_FRAMESZ):
+        # process audio in chunks of the RTP frame size
+        chunk = data[i:i+160]
 
-            def _sx(x):
-                """ float32-to-signed16 with saturation clipping """
-                r = int(round(32767*x))
-                if r > 32767:
-                    return 32767
-                elif r < -32767:
-                    return -32767
-                else:
-                    return r
+        # update sequence number and timestamp
+        _rtpseq += 1
+        _rtptstamp += RTP_FRAMESZ
+        pkt.seq = _rtpseq
+        pkt.timestamp = _rtptstamp
 
-            # convert from float32 to signed16
-            chunk = [_sx(x) for x in chunk]        # FIXME 32767 is max amplitude, make configurable?
-
-            # we now have <= 160 bytes, pad with silence if needed
-            if len(chunk) < RTP_FRAMESZ:
-                padding = [0] * (RTP_FRAMESZ - len(chunk))
-                chunk += padding
-
-            # convert to ITU G.711 mu-law
-            pkt.payload = audioop.lin2ulaw(sampToSignedBin(chunk), 2)
-
-            # send packet
-            rtpPort.send(pkt)
-
-            # wait for next interval
-            if True:
-                next_time += pace
-                time.sleep(max(0., next_time - time.time()))
+        def _sx(x):
+            """ float32-to-signed16 with saturation clipping """
+            r = int(round(32767*x))
+            if r > 32767:
+                return 32767
+            elif r < -32767:
+                return -32767
             else:
-                time.sleep(pace)
+                return r
 
-    silence(0.2)
-    if False:
-        wavfile('wavfiles/hello.txt.wav')
-        silence(1.0)
-        wavfile('wavfiles/brownfox.txt.wav')
-        silence(1.0)
-        wavfile('wavfiles/ops.txt.wav')
-    if True:
-        wavfile('wavfiles/glados.txt.wav')
-        silence(1.0)
-    if True:
-        wavfile('wavfiles/announce.txt.wav')
-        silence(1.0)
-    silence(0.2)
+        # convert from float32 to signed16
+        chunk = [_sx(x) for x in chunk]
 
-    logging.info("Keying down...")
-    htcButton.txCtrl.pttOperation = ButtonOperation.RELEASE
-    seqn = rcpPort.send(htcButton)
+        # we now have <= 160 bytes, pad with silence if needed
+        if len(chunk) < RTP_FRAMESZ:
+            padding = [0] * (RTP_FRAMESZ - len(chunk))
+            chunk += padding
 
-    # Wait for the last few packets to arrive
-    time.sleep(5)
+        # convert to ITU G.711 mu-law
+        pkt.payload = audioop.lin2ulaw(sampToSignedBin(chunk), 2)
 
-    logging.info("Shutting down...")
+        # send packet
+        rtpPort.send(pkt)
 
-    rcpPort.stop()
-    rtpPort.stop()
+        # wait for next interval
+        next_time += pace
+        time.sleep(max(0., next_time - time.time()))
+
+# slight delay so we don't lose the start of the audio
+# e.g. due to the target radio keying up
+silence(0.2)
+
+for i in CFG_DEMO_WAVS:
+    wavfile(i)
+    silence(1.0)
+
+# slight delay to avoid losing the end of the audio
+silence(0.2)
+
+logging.info("Keying down...")
+htcButton.txCtrl.pttOperation = ButtonOperation.RELEASE
+seqn = rcpPort.send(htcButton)
+
+# Wait for the last few packets to arrive
+time.sleep(5)
+
+logging.info("Shutting down...")
+
+rcpPort.stop()
+rtpPort.stop()
