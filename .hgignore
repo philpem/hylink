@@ -1,6 +1,0 @@
-syntax: glob
-*~
-.*.sw?
-*.pyc
-__pycache__
-venv
