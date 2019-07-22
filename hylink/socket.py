@@ -352,6 +352,9 @@ class ADKSocket(object):
           def callback(packet):
 
         "packet" is the HSTRPFromRadio packet.
+
+        :param callback: Callback function
+
         """
         self._rcpRxCallback = callback
 
@@ -367,6 +370,8 @@ class ADKSocket(object):
           def callback(packet):
 
         "packet" is an rtp.RTPPacket instance.
+
+        :param callback: Callback function
         """
         self._rtpRxCallback = callback
 
